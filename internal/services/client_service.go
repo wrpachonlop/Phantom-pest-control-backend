@@ -34,6 +34,29 @@ func NewClientService(
 	}
 }
 
+func (s *ClientService) List(
+	ctx context.Context,
+	req *dto.ClientListRequest,
+) ([]*models.Client, int64, error) { // <--- Cambia ClientFull por Client aquí
+
+	// El repositorio ya devuelve []*models.Client, así que esto ahora encajará perfecto
+	return s.clientRepo.List(ctx, req)
+}
+
+// GetByID retrieves a single client with all its related data (Full view).
+func (s *ClientService) GetByID(ctx context.Context, id uuid.UUID) (*models.ClientFull, error) {
+	// El Service simplemente actúa como mediador con el Repository
+	client, err := s.clientRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("service get client by id: %w", err)
+	}
+
+	// Aquí podrías añadir lógica extra en el futuro,
+	// como verificar si el usuario tiene permiso para ver este cliente específico.
+
+	return client, nil
+}
+
 // Create validates and creates a new client.
 func (s *ClientService) Create(
 	ctx context.Context,
@@ -265,6 +288,13 @@ func (s *ClientService) CheckDuplicates(
 		Clients: clients,
 		MatchOn: matchOn,
 	}, nil
+}
+
+// GetAuditLog retrieves the audit history for a client.
+func (s *ClientService) GetAuditLog(ctx context.Context, id uuid.UUID) ([]map[string]interface{}, error) {
+	// Aquí podrías validar si el usuario actual tiene permisos de "Admin"
+	// para ver logs, pero por ahora lo dejamos abierto para que pruebes.
+	return s.clientRepo.GetAuditLog(ctx, id)
 }
 
 // ─── Helpers ─────────────────────────────────────────────────

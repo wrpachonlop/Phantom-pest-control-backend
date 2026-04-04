@@ -273,7 +273,12 @@ func (r *ClientRepository) Create(
 // Update performs a partial update on a client.
 func (r *ClientRepository) Update(ctx context.Context, id uuid.UUID, updates map[string]interface{}) (*models.Client, error) {
 	if len(updates) == 0 {
-		return r.GetByID(ctx, id)
+		full, err := r.GetByID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		// Retornamos la dirección de la estructura Client embebida
+		return &full.Client, nil
 	}
 
 	setClauses := []string{}
@@ -483,6 +488,49 @@ func (r *ClientRepository) getPestIssues(ctx context.Context, clientID uuid.UUID
 	}
 	return issues, nil
 }
+func (r *ClientRepository) GetAuditLog(ctx context.Context, clientID uuid.UUID) ([]map[string]interface{}, error) {
+	rows, err := r.db.Query(ctx, `
+        SELECT 
+            id, user_id, action, entity_type, entity_id, 
+            old_values, new_values, host(ip_address), user_agent, created_at
+        FROM audit_logs
+        WHERE entity_id = $1 AND entity_type = 'client'
+        ORDER BY created_at DESC
+    `, clientID) // Usamos host(ip_address) para convertir el INET a string legible
+
+	if err != nil {
+		return nil, fmt.Errorf("query audit log: %w", err)
+	}
+	defer rows.Close()
+
+	logs := []map[string]interface{}{}
+	for rows.Next() {
+		var id, userID, entityID uuid.UUID
+		var action, entityType string
+		var oldValues, newValues interface{}
+		var ip, ua *string
+		var createdAt time.Time
+
+		err := rows.Scan(&id, &userID, &action, &entityType, &entityID, &oldValues, &newValues, &ip, &ua, &createdAt)
+		if err != nil {
+			return nil, fmt.Errorf("scan audit log: %w", err)
+		}
+
+		logs = append(logs, map[string]interface{}{
+			"id":          id,
+			"user_id":     userID,
+			"action":      action,
+			"entity_type": entityType,
+			"entity_id":   entityID,
+			"old_values":  oldValues,
+			"new_values":  newValues,
+			"ip_address":  ip,
+			"user_agent":  ua,
+			"created_at":  createdAt,
+		})
+	}
+	return logs, nil
+}
 
 // GetSnapshot returns a JSON-serializable snapshot of a client for audit purposes.
 func (r *ClientRepository) GetSnapshot(ctx context.Context, id uuid.UUID) (map[string]interface{}, error) {
@@ -492,20 +540,20 @@ func (r *ClientRepository) GetSnapshot(ctx context.Context, id uuid.UUID) (map[s
 	}
 	// Convert to map for generic JSON storage
 	data := map[string]interface{}{
-		"id":                   client.ID,
-		"client_name":          client.ClientName,
-		"status":               client.Status,
-		"property_type":        client.PropertyType,
-		"client_contact_date":  client.ClientContactDate.Format(time.DateOnly),
-		"first_contact_date":   client.FirstContactDate,
-		"sold_date":            client.SoldDate,
-		"after_hours":          client.AfterHours,
-		"contact_method_id":    client.ContactMethodID,
-		"problem_description":  client.ProblemDescription,
-		"location_type":        client.LocationType,
-		"location_value":       client.LocationValue,
-		"sale_range":           client.SaleRange,
-		"sold_by":              client.SoldBy,
+		"id":                  client.ID,
+		"client_name":         client.ClientName,
+		"status":              client.Status,
+		"property_type":       client.PropertyType,
+		"client_contact_date": client.ClientContactDate.Format(time.DateOnly),
+		"first_contact_date":  client.FirstContactDate,
+		"sold_date":           client.SoldDate,
+		"after_hours":         client.AfterHours,
+		"contact_method_id":   client.ContactMethodID,
+		"problem_description": client.ProblemDescription,
+		"location_type":       client.LocationType,
+		"location_value":      client.LocationValue,
+		"sale_range":          client.SaleRange,
+		"sold_by":             client.SoldBy,
 	}
 	return data, nil
 }

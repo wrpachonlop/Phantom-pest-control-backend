@@ -55,6 +55,7 @@ func RequireAuth(cfg *config.Config) gin.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
+			fmt.Printf("DEBUG AUTH ERROR: %v\n", err)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
 			return
 		}

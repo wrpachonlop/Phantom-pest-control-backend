@@ -30,6 +30,7 @@ type SupabaseClaims struct {
 }
 
 func parsePublicKey(rawKey string) (interface{}, error) {
+	fmt.Print("Starting to parse public key...\n")
 	// 1. Quitar comillas accidentales que a veces se cuelan en Render
 	cleanKey := strings.Trim(rawKey, "\"")
 

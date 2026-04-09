@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"encoding/pem"
 	"fmt"
 	"net/http"
 	"strings"
@@ -30,23 +29,33 @@ type SupabaseClaims struct {
 }
 
 func parsePublicKey(rawKey string) (interface{}, error) {
-	fmt.Print("Starting to parse public key...\n")
-	// 1. Quitar comillas accidentales que a veces se cuelan en Render
+	// 1. Quitar comillas accidentales de Render
 	cleanKey := strings.Trim(rawKey, "\"")
 
-	// 2. Convertir los "\n" de texto a saltos de línea reales
+	// 2. Si viene como una sola línea con \n literales, convertirlos
 	cleanKey = strings.ReplaceAll(cleanKey, "\\n", "\n")
 
-	// 3. Limpiar espacios en blanco al inicio y al final
-	cleanKey = strings.TrimSpace(cleanKey)
+	// 3. LA PARTE CLAVE:
+	// Separamos el encabezado/pie del contenido Base64 para limpiar el centro
+	const header = "-----BEGIN PUBLIC KEY-----"
+	const footer = "-----END PUBLIC KEY-----"
 
-	// 4. Intentar parsear
-	block, _ := pem.Decode([]byte(cleanKey))
-	if block == nil {
-		return nil, fmt.Errorf("failed to decode PEM block: verify BEGIN/END tags are present")
+	if !strings.Contains(cleanKey, header) || !strings.Contains(cleanKey, footer) {
+		return nil, fmt.Errorf("la llave no contiene los tags BEGIN/END requeridos")
 	}
 
-	return jwt.ParseECPublicKeyFromPEM([]byte(cleanKey))
+	// Extraemos solo lo que hay en el medio
+	content := strings.TrimPrefix(cleanKey, header)
+	content = strings.TrimSuffix(content, footer)
+
+	// Quitamos CUALQUIER espacio, tabulación o salto de línea del contenido Base64
+	content = strings.Join(strings.Fields(content), "")
+
+	// Reconstruimos el formato PEM perfecto que espera Go
+	finalPEM := header + "\n" + content + "\n" + footer
+	fmt.Printf("DEBUG KEY CONTENT: [%s...%s] Len: %d\n", finalPEM[:30], finalPEM[len(finalPEM)-30:], len(finalPEM))
+
+	return jwt.ParseECPublicKeyFromPEM([]byte(finalPEM))
 }
 
 // RequireAuth validates the Supabase JWT and restricts to @phantompestcontrol.ca

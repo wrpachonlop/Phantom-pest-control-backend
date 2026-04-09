@@ -16,7 +16,7 @@ type Config struct {
 	LogLevel    string
 
 	// Database (Supabase PostgreSQL)
-	DatabaseURL     string
+	DatabaseURL      string
 	DatabaseMaxConns int
 	DatabaseMinConns int
 
@@ -27,7 +27,8 @@ type Config struct {
 	SupabaseJWTSecret  string
 
 	// JWT
-	JWTSecret string
+	JWTSecret    string
+	JWTPublicKey string
 
 	// CORS
 	AllowedOrigins string
@@ -59,7 +60,8 @@ func Load() (*Config, error) {
 		SupabaseAnonKey:    requireEnv("SUPABASE_ANON_KEY"),
 		SupabaseServiceKey: requireEnv("SUPABASE_SERVICE_KEY"),
 		SupabaseJWTSecret:  requireEnv("SUPABASE_JWT_SECRET"),
-		JWTSecret:          requireEnv("SUPABASE_JWT_SECRET"), // Same key
+		JWTSecret:          requireEnv("SUPABASE_JWT_SECRET"),     // Same key
+		JWTPublicKey:       requireEnv("SUPABASE_JWT_PUBLIC_KEY"), // New env for public key
 		AllowedOrigins:     getEnv("ALLOWED_ORIGINS", "http://localhost:3000"),
 		RedisURL:           getEnv("REDIS_URL", ""),
 		AllowedEmailDomain: getEnv("ALLOWED_EMAIL_DOMAIN", "phantompestcontrol.ca"),

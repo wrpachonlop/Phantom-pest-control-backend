@@ -48,10 +48,22 @@ func RequireAuth(cfg *config.Config) gin.HandlerFunc {
 		// Parse and validate JWT (Supabase signs with HS256 using JWT secret)
 		claims := &SupabaseClaims{}
 		token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+
+			if _, ok := t.Method.(*jwt.SigningMethodECDSA); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 			}
-			return []byte(cfg.JWTSecret), nil
+
+			// 2. Parsear la llave pública PEM que guardamos en el config
+			// Reemplaza los "\n" literales por saltos de línea reales si vienen del .env
+			pemFormatted := strings.ReplaceAll(cfg.JWTPublicKey, "\\n", "\n")
+
+			pubKey, err := jwt.ParseECPublicKeyFromPEM([]byte(pemFormatted))
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse EC public key: %w", err)
+			}
+
+			return pubKey, nil
+			// return []byte(cfg.JWTSecret), nil
 		})
 
 		if err != nil || !token.Valid {

@@ -26,6 +26,8 @@ func NewClientRepository(db *pgxpool.Pool) *ClientRepository {
 func (r *ClientRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.ClientFull, error) {
 	client := &models.ClientFull{}
 
+	client.ContactMethod = &models.ContactMethod{}
+
 	err := r.db.QueryRow(ctx, `
 		SELECT
 			c.id, c.client_name, c.client_type, c.property_type, c.status,

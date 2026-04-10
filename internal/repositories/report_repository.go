@@ -62,8 +62,8 @@ func (r *ReportRepository) GetResidentialStats(
 		JOIN contact_methods cm ON cm.id = c.contact_method_id
 		WHERE
 			c.property_type = 'residential'
-			AND c.first_contact_date >= $1
-			AND c.first_contact_date <= $2
+			AND c.client_contact_date >= $1
+			AND c.client_contact_date <= $2
 		GROUP BY cm.id, cm.name
 		ORDER BY cm.name
 	`, from, to)
@@ -102,8 +102,8 @@ func (r *ReportRepository) GetCommercialStats(
 		FROM clients
 		WHERE
 			property_type = 'commercial'
-			AND first_contact_date >= $1
-			AND first_contact_date <= $2
+			AND client_contact_date >= $1
+			AND client_contact_date <= $2
 	`, from, to).Scan(&row.TotalReceived, &row.TotalSold)
 	if err != nil {
 		return nil, fmt.Errorf("commercial stats query: %w", err)
@@ -124,8 +124,8 @@ func (r *ReportRepository) GetAfterHoursStats(
 		FROM clients
 		WHERE
 			after_hours = TRUE
-			AND first_contact_date >= $1
-			AND first_contact_date <= $2
+			AND client_contact_date >= $1
+			AND client_contact_date <= $2
 	`, from, to).Scan(&row.TotalReceived, &row.TotalSold)
 	if err != nil {
 		return nil, fmt.Errorf("after hours stats query: %w", err)

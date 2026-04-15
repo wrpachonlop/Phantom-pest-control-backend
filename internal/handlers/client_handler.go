@@ -11,6 +11,13 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	IDPhoneCall    = "756de075-6e1d-48d5-8748-c732833d281b"
+	IDText         = "76c97267-350d-4b82-897d-c39589c60d7b"
+	IDEstimateForm = "acb52b34-f000-4bb9-8479-2cba40ed47c1"
+	IDMail         = "deb6c0f8-fa84-4550-bb8d-fe946718188f"
+)
+
 // ClientHandler handles HTTP requests for client endpoints.
 type ClientHandler struct {
 	clientService *services.ClientService
@@ -74,7 +81,25 @@ func (h *ClientHandler) Get(c *gin.Context) {
 // Create godoc
 // POST /clients
 func (h *ClientHandler) Create(c *gin.Context) {
+
 	req := &dto.CreateClientRequest{}
+	methodId := req.ContactMethodID.String()
+	switch methodId {
+	case IDPhoneCall, IDText:
+		if len(req.Phones) == 0 || req.Phones[0].PhoneNumber == "" {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "phone number is required for phone calls or text messages"})
+			return
+		}
+	case IDEstimateForm, IDMail:
+		if len(req.Emails) == 0 || req.Emails[0].Email == "" {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "email is required for estimate forms or mail"})
+			return
+		}
+		if !isValidEmail(req.Emails[0].Email) {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "the provided email format is invalid"})
+			return
+		}
+	}
 	if err := c.ShouldBindJSON(req); err != nil {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
 		return
@@ -92,6 +117,10 @@ func (h *ClientHandler) Create(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, client)
+}
+
+func isValidEmail(s string) bool {
+	panic("unimplemented")
 }
 
 // Update godoc

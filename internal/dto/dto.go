@@ -13,22 +13,22 @@ import (
 
 // CreateClientRequest is the payload for POST /clients
 type CreateClientRequest struct {
-	ClientName         *string              `json:"client_name"`
-	ClientType         models.ClientType    `json:"client_type" validate:"required,oneof=new existing recurrent spam"`
-	PropertyType       models.PropertyType  `json:"property_type" validate:"required,oneof=residential commercial"`
-	Status             models.ClientStatus  `json:"status" validate:"omitempty,oneof=blue white yellow purple green red"`
-	ClientContactDate  string               `json:"client_contact_date" validate:"required"` // YYYY-MM-DD
-	AfterHours         bool                 `json:"after_hours"`
-	ContactMethodID    uuid.UUID            `json:"contact_method_id" validate:"required"`
-	ProblemDescription *string              `json:"problem_description"`
-	LocationType       models.LocationType  `json:"location_type" validate:"required,oneof=address city"`
-	LocationValue      *string              `json:"location_value"`
-	SaleRange          *string              `json:"sale_range"`
-	SoldDate           *string              `json:"sold_date"` // YYYY-MM-DD, required if status=green
+	ClientName         *string             `json:"client_name"`
+	ClientType         models.ClientType   `json:"client_type" validate:"required,oneof=new existing recurrent spam"`
+	PropertyType       models.PropertyType `json:"property_type" validate:"required,oneof=residential commercial"`
+	Status             models.ClientStatus `json:"status" validate:"omitempty,oneof=blue white yellow purple green red"`
+	ClientContactDate  string              `json:"client_contact_date" validate:"required"` // YYYY-MM-DD
+	AfterHours         bool                `json:"after_hours"`
+	ContactMethodID    uuid.UUID           `json:"contact_method_id" validate:"required"`
+	ProblemDescription *string             `json:"problem_description"`
+	LocationType       models.LocationType `json:"location_type" validate:"required,oneof=address city"`
+	LocationValue      *string             `json:"location_value"`
+	SaleRange          *string             `json:"sale_range"`
+	SoldDate           *string             `json:"sold_date"` // YYYY-MM-DD, required if status=green
 	// Related entities (created atomically)
-	Phones     []PhoneInput  `json:"phones"`
-	Emails     []EmailInput  `json:"emails"`
-	PestIssues []uuid.UUID   `json:"pest_issues"`
+	Phones     []PhoneInput `json:"phones"`
+	Emails     []EmailInput `json:"emails"`
+	PestIssues []uuid.UUID  `json:"pest_issues"`
 }
 
 // UpdateClientRequest is the payload for PUT /clients/:id
@@ -56,11 +56,11 @@ type ClientListRequest struct {
 	Status       *models.ClientStatus `form:"status"`
 	PropertyType *models.PropertyType `form:"property_type"`
 	AfterHours   *bool                `form:"after_hours"`
-	Search       string               `form:"search"`         // fuzzy search on name/location
-	DateFrom     string               `form:"date_from"`      // YYYY-MM-DD
-	DateTo       string               `form:"date_to"`        // YYYY-MM-DD
-	SortBy       string               `form:"sort_by"`        // created_at, client_contact_date, etc.
-	SortDir      string               `form:"sort_dir"`       // asc | desc
+	Search       string               `form:"search"`    // fuzzy search on name/location
+	DateFrom     string               `form:"date_from"` // YYYY-MM-DD
+	DateTo       string               `form:"date_to"`   // YYYY-MM-DD
+	SortBy       string               `form:"sort_by"`   // created_at, client_contact_date, etc.
+	SortDir      string               `form:"sort_dir"`  // asc | desc
 }
 
 // =============================================================
@@ -68,12 +68,12 @@ type ClientListRequest struct {
 // =============================================================
 
 type PhoneInput struct {
-	PhoneNumber string `json:"phone_number" validate:"required"`
+	PhoneNumber string `json:"phone_number"`
 	Label       string `json:"label"`
 }
 
 type EmailInput struct {
-	Email string `json:"email" validate:"required,email"`
+	Email string `json:"email"`
 	Label string `json:"label"`
 }
 
@@ -91,16 +91,16 @@ type DuplicateCheckRequest struct {
 // =============================================================
 
 type CreateFollowUpRequest struct {
-	ClientID    uuid.UUID            `json:"client_id" validate:"required"`
-	Date        string               `json:"date" validate:"required"` // YYYY-MM-DD
-	Type        models.FollowUpType  `json:"type" validate:"required,oneof=inbound outbound sold"`
-	Description *string              `json:"description"`
+	ClientID    uuid.UUID           `json:"client_id" validate:"required"`
+	Date        string              `json:"date" validate:"required"` // YYYY-MM-DD
+	Type        models.FollowUpType `json:"type" validate:"required,oneof=inbound outbound sold"`
+	Description *string             `json:"description"`
 }
 
 type UpdateFollowUpRequest struct {
-	Date        *string               `json:"date"`
-	Type        *models.FollowUpType  `json:"type" validate:"omitempty,oneof=inbound outbound sold"`
-	Description *string               `json:"description"`
+	Date        *string              `json:"date"`
+	Type        *models.FollowUpType `json:"type" validate:"omitempty,oneof=inbound outbound sold"`
+	Description *string              `json:"description"`
 }
 
 // =============================================================
@@ -148,9 +148,9 @@ type UpdatePestIssueRequest struct {
 
 // ReportRequest defines parameters for any report
 type ReportRequest struct {
-	Period    string `form:"period" validate:"required,oneof=daily weekly monthly custom"`
-	DateFrom  string `form:"date_from"` // YYYY-MM-DD, required for custom
-	DateTo    string `form:"date_to"`   // YYYY-MM-DD, required for custom
+	Period   string `form:"period" validate:"required,oneof=daily weekly monthly custom"`
+	DateFrom string `form:"date_from"` // YYYY-MM-DD, required for custom
+	DateTo   string `form:"date_to"`   // YYYY-MM-DD, required for custom
 	// For daily/weekly/monthly, these are auto-computed from the anchor date:
 	AnchorDate string `form:"anchor_date"` // YYYY-MM-DD, e.g. "today" period
 }

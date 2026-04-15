@@ -97,6 +97,9 @@ func (s *ClientService) Create(
 	// Normalize phones
 	phones := make([]models.Phone, 0, len(req.Phones))
 	for _, p := range req.Phones {
+		if strings.TrimSpace(p.PhoneNumber) == "" {
+			continue
+		}
 		normalized, err := normalizePhone(p.PhoneNumber)
 		if err != nil {
 			return nil, fmt.Errorf("invalid phone number %q: %w", p.PhoneNumber, err)
@@ -305,6 +308,9 @@ func (s *ClientService) GetAuditLog(ctx context.Context, id uuid.UUID) ([]map[st
 // normalizePhone converts a phone number to E.164 format (+1XXXXXXXXXX for CA/US).
 // This is basic normalization; for production consider libphonenumber bindings.
 func normalizePhone(raw string) (string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return "", nil
+	}
 	// Strip everything except digits and leading +
 	var sb strings.Builder
 	for i, ch := range raw {

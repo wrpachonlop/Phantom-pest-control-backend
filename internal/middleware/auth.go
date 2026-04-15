@@ -53,7 +53,6 @@ func parsePublicKey(rawKey string) (interface{}, error) {
 
 	// Reconstruimos el formato PEM perfecto que espera Go
 	finalPEM := header + "\n" + content + "\n" + footer
-	fmt.Printf("DEBUG KEY CONTENT: [%s...%s] Len: %d\n", finalPEM[:30], finalPEM[len(finalPEM)-30:], len(finalPEM))
 
 	return jwt.ParseECPublicKeyFromPEM([]byte(finalPEM))
 }

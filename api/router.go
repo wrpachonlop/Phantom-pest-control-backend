@@ -3,6 +3,8 @@ package api
 import (
 	"net/http"
 
+	"strings"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,7 +14,6 @@ import (
 	"github.com/phantompestcontrol/crm/internal/repositories"
 	"github.com/phantompestcontrol/crm/internal/services"
 	"go.uber.org/zap"
-	"strings"
 )
 
 // NewRouter constructs the Gin engine with all routes and middleware wired.

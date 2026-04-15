@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -86,11 +87,13 @@ func (h *ClientHandler) Create(c *gin.Context) {
 	methodId := req.ContactMethodID.String()
 	switch methodId {
 	case IDPhoneCall, IDText:
+		fmt.Print("Method arrive phone call or text", req.Phones)
 		if len(req.Phones) == 0 || req.Phones[0].PhoneNumber == "" {
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "phone number is required for phone calls or text messages"})
 			return
 		}
 	case IDEstimateForm, IDMail:
+		fmt.Print("Method arrive estimate or mail", req.Emails)
 		if len(req.Emails) == 0 || req.Emails[0].Email == "" {
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "email is required for estimate forms or mail"})
 			return

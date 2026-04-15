@@ -65,8 +65,10 @@ func (s *ClientService) Create(
 	ipAddress, userAgent string,
 ) (*models.ClientFull, error) {
 
+	loc, _ := time.LoadLocation("America/Vancouver")
+
 	// Parse contact date
-	contactDate, err := time.Parse(time.DateOnly, req.ClientContactDate)
+	contactDate, err := time.ParseInLocation(time.DateOnly, req.ClientContactDate, loc)
 	if err != nil {
 		return nil, fmt.Errorf("invalid client_contact_date: %w", err)
 	}
@@ -80,7 +82,7 @@ func (s *ClientService) Create(
 	// Parse sold date
 	var soldDate *time.Time
 	if req.SoldDate != nil {
-		d, err := time.Parse(time.DateOnly, *req.SoldDate)
+		d, err := time.ParseInLocation(time.DateOnly, *req.SoldDate, loc)
 		if err != nil {
 			return nil, fmt.Errorf("invalid sold_date: %w", err)
 		}
@@ -163,6 +165,7 @@ func (s *ClientService) Update(
 	updatedBy uuid.UUID,
 	ipAddress, userAgent string,
 ) (*models.Client, error) {
+	loc, _ := time.LoadLocation("America/Vancouver")
 
 	// Capture old state for audit
 	oldSnapshot, _ := s.clientRepo.GetSnapshot(ctx, id)
@@ -209,7 +212,7 @@ func (s *ClientService) Update(
 			if req.SoldDate == nil {
 				return nil, fmt.Errorf("sold_date is required when setting status to 'green'")
 			}
-			d, err := time.Parse(time.DateOnly, *req.SoldDate)
+			d, err := time.ParseInLocation(time.DateOnly, *req.SoldDate, loc)
 			if err != nil {
 				return nil, fmt.Errorf("invalid sold_date: %w", err)
 			}
@@ -220,7 +223,7 @@ func (s *ClientService) Update(
 	}
 
 	if req.ClientContactDate != nil {
-		d, err := time.Parse(time.DateOnly, *req.ClientContactDate)
+		d, err := time.ParseInLocation(time.DateOnly, *req.ClientContactDate, loc)
 		if err != nil {
 			return nil, fmt.Errorf("invalid client_contact_date: %w", err)
 		}

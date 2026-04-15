@@ -14,9 +14,10 @@ import (
 // they are always calculated fresh from the database to maintain retroactive accuracy.
 //
 // CORE RULE:
-//   ALL sales count by first_contact_date.
-//   If a client was first contacted last week and sold today,
-//   the sale appears in last week's report.
+//
+//	ALL sales count by first_contact_date.
+//	If a client was first contacted last week and sold today,
+//	the sale appears in last week's report.
 type ReportService struct {
 	reportRepo *repositories.ReportRepository
 	logger     *zap.Logger
@@ -178,42 +179,43 @@ func (s *ReportService) computeReport(
 
 // resolvePeriod converts a ReportRequest into concrete from/to timestamps.
 func (s *ReportService) resolvePeriod(req *dto.ReportRequest) (from, to time.Time, label string, err error) {
-	now := time.Now()
+	loc, _ := time.LoadLocation("America/Vancouver")
+	now := time.Now().In(loc)
 
 	switch req.Period {
 	case "daily":
 		anchor := now
 		if req.AnchorDate != "" {
-			anchor, err = time.Parse(time.DateOnly, req.AnchorDate)
+			anchor, err = time.ParseInLocation(time.DateOnly, req.AnchorDate, loc)
 			if err != nil {
 				return time.Time{}, time.Time{}, "", fmt.Errorf("invalid anchor_date: %w", err)
 			}
 		}
-		from = time.Date(anchor.Year(), anchor.Month(), anchor.Day(), 0, 0, 0, 0, now.Location())
+		from = time.Date(anchor.Year(), anchor.Month(), anchor.Day(), 0, 0, 0, 0, loc)
 		to = from.Add(24*time.Hour - time.Nanosecond)
 		label = from.Format("Jan 2, 2006")
 
 	case "weekly":
 		anchor := now
 		if req.AnchorDate != "" {
-			anchor, err = time.Parse(time.DateOnly, req.AnchorDate)
+			anchor, err = time.ParseInLocation(time.DateOnly, req.AnchorDate, loc)
 			if err != nil {
 				return time.Time{}, time.Time{}, "", fmt.Errorf("invalid anchor_date: %w", err)
 			}
 		}
-		from = weekStartDate(anchor)
+		from = weekStartDate(anchor).In(loc)
 		to = from.AddDate(0, 0, 7).Add(-time.Nanosecond)
 		label = fmt.Sprintf("Week of %s", from.Format("Jan 2, 2006"))
 
 	case "monthly":
 		anchor := now
 		if req.AnchorDate != "" {
-			anchor, err = time.Parse(time.DateOnly, req.AnchorDate)
+			anchor, err = time.ParseInLocation(time.DateOnly, req.AnchorDate, loc)
 			if err != nil {
 				return time.Time{}, time.Time{}, "", fmt.Errorf("invalid anchor_date: %w", err)
 			}
 		}
-		from = time.Date(anchor.Year(), anchor.Month(), 1, 0, 0, 0, 0, now.Location())
+		from = time.Date(anchor.Year(), anchor.Month(), 1, 0, 0, 0, 0, loc)
 		to = from.AddDate(0, 1, 0).Add(-time.Nanosecond)
 		label = from.Format("January 2006")
 
@@ -221,11 +223,11 @@ func (s *ReportService) resolvePeriod(req *dto.ReportRequest) (from, to time.Tim
 		if req.DateFrom == "" || req.DateTo == "" {
 			return time.Time{}, time.Time{}, "", fmt.Errorf("date_from and date_to are required for custom period")
 		}
-		from, err = time.Parse(time.DateOnly, req.DateFrom)
+		from, err = time.ParseInLocation(time.DateOnly, req.DateFrom, loc)
 		if err != nil {
 			return time.Time{}, time.Time{}, "", fmt.Errorf("invalid date_from: %w", err)
 		}
-		to, err = time.Parse(time.DateOnly, req.DateTo)
+		to, err = time.ParseInLocation(time.DateOnly, req.DateTo, loc)
 		if err != nil {
 			return time.Time{}, time.Time{}, "", fmt.Errorf("invalid date_to: %w", err)
 		}

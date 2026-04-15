@@ -38,8 +38,10 @@ func (s *FollowUpService) Create(
 	createdBy uuid.UUID,
 	ipAddress, userAgent string,
 ) (*models.FollowUp, error) {
+	loc, _ := time.LoadLocation("America/Vancouver")
 
-	date, err := time.Parse(time.DateOnly, req.Date)
+	// Parse follow-up date
+	date, err := time.ParseInLocation(time.DateOnly, req.Date, loc)
 	if err != nil {
 		return nil, fmt.Errorf("invalid date: %w", err)
 	}

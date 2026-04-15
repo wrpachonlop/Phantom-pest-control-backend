@@ -84,7 +84,9 @@ func (h *ClientHandler) Get(c *gin.Context) {
 func (h *ClientHandler) Create(c *gin.Context) {
 
 	req := &dto.CreateClientRequest{}
+	fmt.Printf("DEBUG CONTACT METHOD ID: %s\n", req)
 	methodId := req.ContactMethodID.String()
+	fmt.Printf("DEBUG CONTACT METHOD ID: %s\n", methodId)
 	switch methodId {
 	case IDPhoneCall, IDText:
 		fmt.Print("Method arrive phone call or text", req.Phones)

@@ -14,8 +14,8 @@ import (
 
 const (
 	IDPhoneCall    = "756de075-6e1d-48d5-8748-c732833d281b"
-	IDText         = "76c97267-350d-4b82-897d-c39589c60d7b"
-	IDEstimateForm = "acb52b34-f000-4bb9-8479-2cba40ed47c1"
+	IDText         = "76c97267-350d-4b82-897d-c39589c60d7e"
+	IDEstimateForm = "acb52b34-f000-4bb9-8479-2cba40ed4706"
 	IDMail         = "deb6c0f8-fa84-4550-bb8d-fe946718188f"
 )
 

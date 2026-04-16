@@ -40,8 +40,8 @@ func (s *ReportService) GetPeriodReport(
 }
 
 // GetDashboard returns all stats needed for the main dashboard.
-func (s *ReportService) GetDashboard(ctx context.Context) (*dto.DashboardResponse, error) {
-	now := time.Now()
+func (s *ReportService) GetDashboard(ctx context.Context, anchor time.Time) (*dto.DashboardResponse, error) {
+	loc := anchor.Location()
 
 	// Status distribution
 	statusDist, err := s.reportRepo.GetStatusDistribution(ctx)
@@ -50,7 +50,7 @@ func (s *ReportService) GetDashboard(ctx context.Context) (*dto.DashboardRespons
 	}
 
 	// Today
-	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	todayStart := time.Date(anchor.Year(), anchor.Month(), anchor.Day(), 0, 0, 0, 0, loc)
 	todayEnd := todayStart.Add(24*time.Hour - time.Nanosecond)
 	todayStats, err := s.computeReport(ctx, todayStart, todayEnd, "Today")
 	if err != nil {
@@ -58,7 +58,7 @@ func (s *ReportService) GetDashboard(ctx context.Context) (*dto.DashboardRespons
 	}
 
 	// This week (Mon–Sun)
-	weekStart := weekStartDate(now)
+	weekStart := weekStartDate(anchor)
 	weekEnd := weekStart.AddDate(0, 0, 6).Add(24*time.Hour - time.Nanosecond)
 	thisWeekStats, err := s.computeReport(ctx, weekStart, weekEnd, "This Week")
 	if err != nil {
@@ -66,7 +66,7 @@ func (s *ReportService) GetDashboard(ctx context.Context) (*dto.DashboardRespons
 	}
 
 	// This month
-	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	monthStart := time.Date(anchor.Year(), anchor.Month(), 1, 0, 0, 0, 0, loc)
 	monthEnd := monthStart.AddDate(0, 1, 0).Add(-time.Nanosecond)
 	thisMonthStats, err := s.computeReport(ctx, monthStart, monthEnd, "This Month")
 	if err != nil {

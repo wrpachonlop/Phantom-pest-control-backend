@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/phantompestcontrol/crm/internal/dto"
@@ -42,7 +43,24 @@ func (h *ReportHandler) GetReport(c *gin.Context) {
 // GetDashboard godoc
 // GET /reports/dashboard
 func (h *ReportHandler) GetDashboard(c *gin.Context) {
-	dashboard, err := h.reportService.GetDashboard(c.Request.Context())
+	loc, _ := time.LoadLocation("America/Vancouver")
+	anchorStr := c.Query("anchor_date")
+	var anchorDate time.Time
+	var err error
+	if anchorStr != "" {
+		// Intentamos parsear la fecha enviada: "2026-04-15"
+		anchorDate, err = time.ParseInLocation("2006-01-02", anchorStr, loc)
+		if err != nil {
+			h.logger.Warn("invalid anchor_date format", zap.String("val", anchorStr))
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid date format, use YYYY-MM-DD"})
+			return
+		}
+	} else {
+		// Si no viene nada, usamos el "Hoy" real de Vancouver
+		anchorDate = time.Now().In(loc)
+	}
+
+	dashboard, err := h.reportService.GetDashboard(c.Request.Context(), anchorDate)
 	if err != nil {
 		h.logger.Error("get dashboard", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to load dashboard"})

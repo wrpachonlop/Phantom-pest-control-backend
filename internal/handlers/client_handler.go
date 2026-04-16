@@ -84,6 +84,11 @@ func (h *ClientHandler) Get(c *gin.Context) {
 func (h *ClientHandler) Create(c *gin.Context) {
 
 	req := &dto.CreateClientRequest{}
+	if err := c.ShouldBindJSON(req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
 	fmt.Printf("DEBUG CONTACT METHOD ID: %s\n", req)
 	methodId := req.ContactMethodID.String()
 	fmt.Printf("DEBUG CONTACT METHOD ID: %s\n", methodId)
@@ -104,10 +109,6 @@ func (h *ClientHandler) Create(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "the provided email format is invalid"})
 			return
 		}
-	}
-	if err := c.ShouldBindJSON(req); err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
-		return
 	}
 
 	userID := middleware.GetUserID(c)

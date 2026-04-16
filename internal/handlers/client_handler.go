@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -126,7 +127,8 @@ func (h *ClientHandler) Create(c *gin.Context) {
 }
 
 func isValidEmail(s string) bool {
-	panic("unimplemented")
+	parts := strings.Split(s, "@")
+	return len(parts) == 2 && len(parts[0]) > 0 && strings.Contains(parts[1], ".")
 }
 
 // Update godoc

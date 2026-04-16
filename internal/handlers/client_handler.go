@@ -106,10 +106,14 @@ func (h *ClientHandler) Create(c *gin.Context) {
 			return
 		}
 	}
+	isSpam := req.ClientType == "spam"
+	isInitial := req.ClientType == "initial"
 
-	if len(req.PestIssues) == 0 {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "at least one pest issue must be selected"})
-		return
+	if !isSpam && !isInitial {
+		if len(req.PestIssues) == 0 {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "at least one pest issue must be selected"})
+			return
+		}
 	}
 
 	userID := middleware.GetUserID(c)

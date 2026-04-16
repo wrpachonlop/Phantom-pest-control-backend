@@ -64,6 +64,7 @@ func (r *ReportRepository) GetResidentialStats(
 			c.property_type = 'residential'
 			AND c.client_contact_date >= $1
 			AND c.client_contact_date <= $2
+			AND c.client_type != 'spam'
 		GROUP BY cm.id, cm.name
 		ORDER BY cm.name
 	`, from, to)
@@ -104,6 +105,7 @@ func (r *ReportRepository) GetCommercialStats(
 			property_type = 'commercial'
 			AND client_contact_date >= $1
 			AND client_contact_date <= $2
+			AND client_type != 'spam'
 	`, from, to).Scan(&row.TotalReceived, &row.TotalSold)
 	if err != nil {
 		return nil, fmt.Errorf("commercial stats query: %w", err)
@@ -126,6 +128,7 @@ func (r *ReportRepository) GetAfterHoursStats(
 			after_hours = TRUE
 			AND client_contact_date >= $1
 			AND client_contact_date <= $2
+			AND client_type != 'spam'
 	`, from, to).Scan(&row.TotalReceived, &row.TotalSold)
 	if err != nil {
 		return nil, fmt.Errorf("after hours stats query: %w", err)
@@ -151,6 +154,7 @@ func (r *ReportRepository) GetMultiPeriodSummary(
 			WHERE
 				first_contact_date >= $1
 				AND first_contact_date <= $2
+				AND client_type != 'spam'
 		`, period.From, period.To).Scan(&received, &sold)
 		if err != nil {
 			return nil, fmt.Errorf("multi-period summary: %w", err)
@@ -195,6 +199,7 @@ func (r *ReportRepository) GetTopPerformers(
 			AND c.first_contact_date >= $1
 			AND c.first_contact_date <= $2
 			AND c.sold_by IS NOT NULL
+			AND c.client_type != 'spam'
 		GROUP BY u.id, u.full_name, u.email
 		ORDER BY total_sales DESC
 		LIMIT $3

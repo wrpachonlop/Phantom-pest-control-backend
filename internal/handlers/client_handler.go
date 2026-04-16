@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -89,18 +88,14 @@ func (h *ClientHandler) Create(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG CONTACT METHOD ID: %s\n", req)
 	methodId := req.ContactMethodID.String()
-	fmt.Printf("DEBUG CONTACT METHOD ID: %s\n", methodId)
 	switch methodId {
 	case IDPhoneCall, IDText:
-		fmt.Print("Method arrive phone call or text", req.Phones)
 		if len(req.Phones) == 0 || req.Phones[0].PhoneNumber == "" {
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "phone number is required for phone calls or text messages"})
 			return
 		}
 	case IDEstimateForm, IDMail:
-		fmt.Print("Method arrive estimate or mail", req.Emails)
 		if len(req.Emails) == 0 || req.Emails[0].Email == "" {
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "email is required for estimate forms or mail"})
 			return
@@ -109,6 +104,11 @@ func (h *ClientHandler) Create(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "the provided email format is invalid"})
 			return
 		}
+	}
+
+	if len(req.PestIssues) == 0 {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "at least one pest issue must be selected"})
+		return
 	}
 
 	userID := middleware.GetUserID(c)

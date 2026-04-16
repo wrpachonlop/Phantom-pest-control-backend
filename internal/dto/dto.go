@@ -28,7 +28,7 @@ type CreateClientRequest struct {
 	// Related entities (created atomically)
 	Phones     []PhoneInput `json:"phones"`
 	Emails     []EmailInput `json:"emails"`
-	PestIssues []uuid.UUID  `json:"pest_issues"`
+	PestIssues []uuid.UUID  `json:"pest_issues" validate:"required,min=1"`
 }
 
 // UpdateClientRequest is the payload for PUT /clients/:id

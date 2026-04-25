@@ -106,8 +106,11 @@ func (h *ClientHandler) Create(c *gin.Context) {
 			return
 		}
 	}
-	isSpam := req.ClientType == "spam"
-	isInitial := req.ClientType == "initial"
+	clientType := strings.ToLower(strings.TrimSpace(req.ClientType))
+	isSpam := clientType == "spam"
+	isInitial := clientType == "initial"
+	fmt.Printf("DEBUG: ClientType: %q | isSpam: %v | isInitial: %v | PestCount: %d\n", 
+    req.ClientType, isSpam, isInitial, len(req.PestIssues))
 
 	if !isSpam && !isInitial {
 		if len(req.PestIssues) == 0 {

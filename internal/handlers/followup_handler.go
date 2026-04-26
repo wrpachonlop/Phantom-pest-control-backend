@@ -105,3 +105,32 @@ func (h *FollowUpHandler) ListAll(c *gin.Context) {
 
 	c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "client_id query parameter required"})
 }
+
+// Update godoc
+// PUT /follow-ups/:id
+func (h *FollowUpHandler) Update(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid follow-up ID"})
+		return
+	}
+
+	req := &dto.UpdateFollowUpRequest{}
+	if err := c.ShouldBindJSON(req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	fu, err := h.followUpService.Update(
+		c.Request.Context(), id, req, userID,
+		c.ClientIP(), c.Request.UserAgent(),
+	)
+	if err != nil {
+		h.logger.Warn("update follow-up failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, fu)
+}

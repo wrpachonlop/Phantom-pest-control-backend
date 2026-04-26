@@ -138,3 +138,66 @@ func (s *FollowUpService) Delete(
 	s.audit.Log(&deletedBy, "delete", "follow_up", id, fu, nil, ip, ua)
 	return nil
 }
+
+// Update modifies an existing follow-up. Only fields provided in the request will be updated.
+func (s *FollowUpService) Update(
+	ctx context.Context,
+	id uuid.UUID,
+	req *dto.UpdateFollowUpRequest,
+	updatedBy uuid.UUID,
+	ipAddress, userAgent string,
+) (*models.FollowUp, error) {
+
+	// 1. Obtener el registro actual para mantener los valores que no vienen en el request
+	current := &models.FollowUp{}
+	err := s.db.QueryRow(ctx,
+		`SELECT date, type, description FROM follow_ups WHERE id = $1`, id,
+	).Scan(&current.Date, &current.Type, &current.Description)
+	if err != nil {
+		return nil, fmt.Errorf("follow-up not found: %w", err)
+	}
+
+	// 2. Lógica de "Parche": Solo actualizar si el puntero no es nil
+	loc, _ := time.LoadLocation("America/Vancouver")
+
+	finalDate := current.Date
+	if req.Date != nil {
+		d, err := time.ParseInLocation(time.DateOnly, *req.Date, loc)
+		if err != nil {
+			return nil, fmt.Errorf("invalid date: %w", err)
+		}
+		finalDate = d
+	}
+
+	finalType := current.Type
+	if req.Type != nil {
+		finalType = *req.Type
+	}
+
+	finalDesc := current.Description
+	if req.Description != nil {
+		finalDesc = req.Description // Aquí pasamos el puntero directamente
+	}
+
+	// 3. Ejecutar el UPDATE
+	fu := &models.FollowUp{}
+	err = s.db.QueryRow(ctx, `
+        UPDATE follow_ups 
+        SET date = $1, type = $2, description = $3
+        WHERE id = $4
+        RETURNING id, client_id, date, type, description, created_by, created_at
+    `, finalDate, finalType, finalDesc, id,
+	).Scan(
+		&fu.ID, &fu.ClientID, &fu.Date, &fu.Type,
+		&fu.Description, &fu.CreatedBy, &fu.CreatedAt,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("update follow-up: %w", err)
+	}
+
+	// Auditoría
+	s.audit.Log(&updatedBy, "update", "follow_up", fu.ID, nil, nil, &ipAddress, &userAgent)
+
+	return fu, nil
+}

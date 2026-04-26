@@ -82,6 +82,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) *gin.En
 
 		// Follow-ups
 		auth.POST("/follow-ups", followUpH.Create)
+		auth.PUT("/follow-ups/:id", followUpH.Update)
 
 		// Notes
 		auth.POST("/notes", adminH.CreateNote)

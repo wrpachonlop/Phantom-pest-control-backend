@@ -106,7 +106,7 @@ func (h *ClientHandler) Create(c *gin.Context) {
 			return
 		}
 	}
-	clientType := strings.ToLower(strings.TrimSpace(req.ClientType))
+	clientType := strings.ToLower(strings.TrimSpace(string(req.ClientType)))
 	isSpam := clientType == "spam"
 	isInitial := clientType == "initial"
 	fmt.Printf("DEBUG: ClientType: %q | isSpam: %v | isInitial: %v | PestCount: %d\n", 

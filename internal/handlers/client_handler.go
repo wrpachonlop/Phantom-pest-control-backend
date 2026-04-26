@@ -107,13 +107,20 @@ func (h *ClientHandler) Create(c *gin.Context) {
 			return
 		}
 	}
+	
 	clientType := strings.ToLower(strings.TrimSpace(string(req.ClientType)))
-	isSpam := clientType == "spam"
-	isInitial := clientType == "initial"
-	fmt.Printf("DEBUG: ClientType: %q | isSpam: %v | isInitial: %v | PestCount: %d\n", 
-    req.ClientType, isSpam, isInitial, len(req.PestIssues))
+	statusStr := strings.ToLower(strings.TrimSpace(string(req.Status)))
 
-	if !isSpam && !isInitial {
+	isSpam := clientType == "spam"
+	isInitial := clientType == "new"
+
+	isNewBlue := isInitial && statusStr == "blue"
+	isExempt := isSpam || isNewBlue
+
+	fmt.Printf("DEBUG: Type: %q | Status: %q | Exempt: %v | Pests: %d\n", 
+    clientType, statusStr, isExempt, len(req.PestIssues))
+
+	if !isExempt {
 		if len(req.PestIssues) == 0 {
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "at least one pest issue must be selected"})
 			return

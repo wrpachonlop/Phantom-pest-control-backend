@@ -46,6 +46,8 @@ type UpdateClientRequest struct {
 	SoldBy             *uuid.UUID           `json:"sold_by"`
 	SaleRange          *string              `json:"sale_range"`
 	SoldDate           *string              `json:"sold_date"`
+	Phones             *[]PhoneInput        `json:"phones"`
+	Emails             *[]EmailInput        `json:"emails"`
 	PestIssues         *[]uuid.UUID         `json:"pest_issues"`
 }
 

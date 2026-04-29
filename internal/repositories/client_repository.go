@@ -272,54 +272,201 @@ func (r *ClientRepository) Create(
 	return client, nil
 }
 
+func (r *ClientRepository) syncPhonesTx(ctx context.Context, tx pgx.Tx, id uuid.UUID, phones []dto.PhoneInput) error {
+	_, err := tx.Exec(ctx, `DELETE FROM phones WHERE client_id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("delete phones: %w", err)
+	}
+	for _, p := range phones {
+		_, err = tx.Exec(ctx,
+			`INSERT INTO phones (client_id, phone_number, label) VALUES ($1, $2, $3)`,
+			id, p.PhoneNumber, p.Label,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *ClientRepository) syncEmailsTx(ctx context.Context, tx pgx.Tx, id uuid.UUID, emails []dto.EmailInput) error {
+	_, err := tx.Exec(ctx, `DELETE FROM emails WHERE client_id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("delete emails: %w", err)
+	}
+	for _, e := range emails {
+		_, err = tx.Exec(ctx,
+			`INSERT INTO emails (client_id, email, label) VALUES ($1, $2, $3)`,
+			id, e.Email, e.Label,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *ClientRepository) syncPestsTx(ctx context.Context, tx pgx.Tx, id uuid.UUID, pests []uuid.UUID) error {
+	_, err := tx.Exec(ctx, `DELETE FROM client_pest_issues WHERE client_id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("delete pests: %w", err)
+	}
+	for _, pid := range pests {
+		_, err = tx.Exec(ctx,
+			`INSERT INTO client_pest_issues (client_id, pest_issue_id) VALUES ($1, $2)`,
+			id, pid,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Update performs a partial update on a client.
-func (r *ClientRepository) Update(ctx context.Context, id uuid.UUID, updates map[string]interface{}) (*models.Client, error) {
-	if len(updates) == 0 {
-		full, err := r.GetByID(ctx, id)
+func (r *ClientRepository) Update(
+	ctx context.Context,
+	id uuid.UUID,
+	updates map[string]interface{},
+	phones *[]dto.PhoneInput,
+	emails *[]dto.EmailInput,
+	pests *[]uuid.UUID,
+) (*models.Client, error) {
+	// 1. Iniciamos Transacción
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// 2. Sincronizar listas relacionadas (Delete & Insert)
+	// Usamos los helpers privados que definimos antes
+	if phones != nil {
+		if err := r.syncPhonesTx(ctx, tx, id, *phones); err != nil {
+			return nil, err
+		}
+	}
+	if emails != nil {
+		if err := r.syncEmailsTx(ctx, tx, id, *emails); err != nil {
+			return nil, err
+		}
+	}
+	if pests != nil {
+		if err := r.syncPestsTx(ctx, tx, id, *pests); err != nil {
+			return nil, err
+		}
+	}
+
+	// 3. Preparar la actualización de la tabla principal 'clients'
+	c := &models.Client{}
+
+	// Filtramos el mapa updates para no intentar insertar columnas que no existen en 'clients'
+	// (Tu s.audit.Log añade 'pest_issues' al mapa, pero eso no es una columna de la tabla)
+	validUpdates := map[string]interface{}{}
+	for k, v := range updates {
+		if k != "pest_issues" && k != "phones" && k != "emails" {
+			validUpdates[k] = v
+		}
+	}
+
+	if len(validUpdates) > 0 {
+		setClauses := []string{}
+		args := []interface{}{}
+		argIdx := 1
+
+		for col, val := range validUpdates {
+			setClauses = append(setClauses, fmt.Sprintf("%s = $%d", col, argIdx))
+			args = append(args, val)
+			argIdx++
+		}
+
+		args = append(args, id)
+		query := fmt.Sprintf(`
+            UPDATE clients SET %s, updated_at = NOW()
+            WHERE id = $%d
+            RETURNING id, client_name, client_type, property_type, status,
+                client_contact_date, first_contact_date, sold_date,
+                after_hours, contact_method_id, problem_description,
+                location_type, location_value, sold_by, sale_range,
+                created_by, created_at, updated_at
+        `, strings.Join(setClauses, ", "), argIdx)
+
+		// IMPORTANTE: Usamos tx.QueryRow, no r.db.QueryRow
+		err = tx.QueryRow(ctx, query, args...).Scan(
+			&c.ID, &c.ClientName, &c.ClientType, &c.PropertyType, &c.Status,
+			&c.ClientContactDate, &c.FirstContactDate, &c.SoldDate,
+			&c.AfterHours, &c.ContactMethodID, &c.ProblemDescription,
+			&c.LocationType, &c.LocationValue, &c.SoldBy, &c.SaleRange,
+			&c.CreatedBy, &c.CreatedAt, &c.UpdatedAt,
+		)
+		if err == pgx.ErrNoRows {
+			return nil, ErrNotFound
+		}
+		if err != nil {
+			return nil, fmt.Errorf("update client row: %w", err)
+		}
+	} else {
+		// Si no hay cambios en la tabla principal, cargamos el cliente para el retorno
+		// (Podemos usar tx para leer también)
+		full, err := r.GetByID(ctx, id) // O una query simple aquí
 		if err != nil {
 			return nil, err
 		}
-		// Retornamos la dirección de la estructura Client embebida
-		return &full.Client, nil
+		c = &full.Client
 	}
 
-	setClauses := []string{}
-	args := []interface{}{}
-	argIdx := 1
-
-	for col, val := range updates {
-		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", col, argIdx))
-		args = append(args, val)
-		argIdx++
-	}
-
-	args = append(args, id)
-	query := fmt.Sprintf(`
-		UPDATE clients SET %s, updated_at = NOW()
-		WHERE id = $%d
-		RETURNING id, client_name, client_type, property_type, status,
-			client_contact_date, first_contact_date, sold_date,
-			after_hours, contact_method_id, problem_description,
-			location_type, location_value, sold_by, sale_range,
-			created_by, created_at, updated_at
-	`, strings.Join(setClauses, ", "), argIdx)
-
-	c := &models.Client{}
-	err := r.db.QueryRow(ctx, query, args...).Scan(
-		&c.ID, &c.ClientName, &c.ClientType, &c.PropertyType, &c.Status,
-		&c.ClientContactDate, &c.FirstContactDate, &c.SoldDate,
-		&c.AfterHours, &c.ContactMethodID, &c.ProblemDescription,
-		&c.LocationType, &c.LocationValue, &c.SoldBy, &c.SaleRange,
-		&c.CreatedBy, &c.CreatedAt, &c.UpdatedAt,
-	)
-	if err == pgx.ErrNoRows {
-		return nil, ErrNotFound
-	}
-	if err != nil {
-		return nil, fmt.Errorf("update client: %w", err)
+	// 4. Confirmar cambios
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit tx: %w", err)
 	}
 
 	return c, nil
+	// if len(updates) == 0 {
+	// 	full, err := r.GetByID(ctx, id)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	// Retornamos la dirección de la estructura Client embebida
+	// 	return &full.Client, nil
+	// }
+
+	// setClauses := []string{}
+	// args := []interface{}{}
+	// argIdx := 1
+
+	// for col, val := range updates {
+	// 	setClauses = append(setClauses, fmt.Sprintf("%s = $%d", col, argIdx))
+	// 	args = append(args, val)
+	// 	argIdx++
+	// }
+
+	// args = append(args, id)
+	// query := fmt.Sprintf(`
+	// 	UPDATE clients SET %s, updated_at = NOW()
+	// 	WHERE id = $%d
+	// 	RETURNING id, client_name, client_type, property_type, status,
+	// 		client_contact_date, first_contact_date, sold_date,
+	// 		after_hours, contact_method_id, problem_description,
+	// 		location_type, location_value, sold_by, sale_range,
+	// 		created_by, created_at, updated_at
+	// `, strings.Join(setClauses, ", "), argIdx)
+
+	// c := &models.Client{}
+	// err := r.db.QueryRow(ctx, query, args...).Scan(
+	// 	&c.ID, &c.ClientName, &c.ClientType, &c.PropertyType, &c.Status,
+	// 	&c.ClientContactDate, &c.FirstContactDate, &c.SoldDate,
+	// 	&c.AfterHours, &c.ContactMethodID, &c.ProblemDescription,
+	// 	&c.LocationType, &c.LocationValue, &c.SoldBy, &c.SaleRange,
+	// 	&c.CreatedBy, &c.CreatedAt, &c.UpdatedAt,
+	// )
+	// if err == pgx.ErrNoRows {
+	// 	return nil, ErrNotFound
+	// }
+	// if err != nil {
+	// 	return nil, fmt.Errorf("update client: %w", err)
+	// }
+
+	// return c, nil
 }
 
 // Delete removes a client (admin only – enforced at handler layer).

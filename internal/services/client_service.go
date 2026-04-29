@@ -233,7 +233,24 @@ func (s *ClientService) Update(
 		updates["client_contact_date"] = d
 	}
 
-	updated, err := s.clientRepo.Update(ctx, id, updates)
+	if req.PestIssues != nil {
+		updates["pest_issues"] = *req.PestIssues
+	}
+	if req.Phones != nil {
+		updates["phones"] = *req.Phones
+	}
+	if req.Emails != nil {
+		updates["emails"] = *req.Emails
+	}
+
+	updated, err := s.clientRepo.Update(
+		ctx,
+		id,
+		updates,
+		req.Phones,
+		req.Emails,
+		req.PestIssues,
+	)
 	if err != nil {
 		return nil, err
 	}

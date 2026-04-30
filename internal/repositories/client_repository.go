@@ -105,21 +105,18 @@ func (r *ClientRepository) List(ctx context.Context, req *dto.ClientListRequest)
 		// pattern es el texto que el usuario escribió (ej: "778")
 		pattern := "%" + req.Search + "%"
 
+		condition := fmt.Sprintf(`(
+        c.client_name ILIKE $%d 
+        OR c.location_value ILIKE $%d 
+        OR EXISTS (
+            SELECT 1 FROM phones p 
+            WHERE p.client_id = c.id 
+            AND p.phone_number ILIKE $%d
+        )
+    	)`, argIdx, argIdx+1, argIdx+2)
+
 		// Usamos EXISTS para buscar en la tabla relacionada 'phones'
-		where = append(where, fmt.Sprintf(`(
-            c.client_name ILIKE $%d 
-            OR c.location_value ILIKE $%d 
-            OR EXISTS (
-                SELECT 1 FROM phones p 
-                WHERE p.client_id = c.id 
-                AND p.phone_number ILIKE $%d
-            )
-			OR EXISTS (
-				SELECT 1 FROM emails e 
-				WHERE e.client_id = c.id 
-				AND e.email ILIKE $%d
-			)
-        )`, argIdx, argIdx+1, argIdx+2))
+		where = append(where, condition)
 
 		// Añadimos el patrón tres veces a los argumentos
 		args = append(args, pattern, pattern, pattern)

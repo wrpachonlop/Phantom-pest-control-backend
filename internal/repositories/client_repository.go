@@ -102,13 +102,28 @@ func (r *ClientRepository) List(ctx context.Context, req *dto.ClientListRequest)
 		argIdx++
 	}
 	if req.Search != "" {
-		where = append(where, fmt.Sprintf(
-			"(c.client_name ILIKE $%d OR c.location_value ILIKE $%d)",
-			argIdx, argIdx+1,
-		))
+		// pattern es el texto que el usuario escribió (ej: "778")
 		pattern := "%" + req.Search + "%"
-		args = append(args, pattern, pattern)
-		argIdx += 2
+
+		// Usamos EXISTS para buscar en la tabla relacionada 'phones'
+		where = append(where, fmt.Sprintf(`(
+            c.client_name ILIKE $%d 
+            OR c.location_value ILIKE $%d 
+            OR EXISTS (
+                SELECT 1 FROM phones p 
+                WHERE p.client_id = c.id 
+                AND p.phone_number ILIKE $%d
+            )
+			OR EXISTS (
+				SELECT 1 FROM emails e 
+				WHERE e.client_id = c.id 
+				AND e.email ILIKE $%d
+			)
+        )`, argIdx, argIdx+1, argIdx+2))
+
+		// Añadimos el patrón tres veces a los argumentos
+		args = append(args, pattern, pattern, pattern)
+		argIdx += 3
 	}
 	if req.DateFrom != "" {
 		where = append(where, fmt.Sprintf("c.client_contact_date >= $%d", argIdx))

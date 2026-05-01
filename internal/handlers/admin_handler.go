@@ -12,18 +12,21 @@ import (
 	"github.com/phantompestcontrol/crm/internal/dto"
 	"github.com/phantompestcontrol/crm/internal/middleware"
 	"github.com/phantompestcontrol/crm/internal/models"
+	"github.com/phantompestcontrol/crm/internal/services"
 	"go.uber.org/zap"
 )
 
 // AdminHandler handles dynamic lookup table management and user admin.
+
 type AdminHandler struct {
-	db     *pgxpool.Pool
-	audit  *middleware.AuditService
-	logger *zap.Logger
+	db           *pgxpool.Pool
+	audit        *middleware.AuditService
+	logger       *zap.Logger
+	reminderCron *services.ReminderCron
 }
 
-func NewAdminHandler(db *pgxpool.Pool, audit *middleware.AuditService, logger *zap.Logger) *AdminHandler {
-	return &AdminHandler{db: db, audit: audit, logger: logger}
+func NewAdminHandler(db *pgxpool.Pool, audit *middleware.AuditService, logger *zap.Logger, cron *services.ReminderCron) *AdminHandler {
+	return &AdminHandler{db: db, audit: audit, logger: logger, reminderCron: cron}
 }
 
 // ──────────────────────────────────────────
@@ -471,3 +474,165 @@ func (h *AdminHandler) HealthCheck(c *gin.Context) {
 }
 
 func strPtr(s string) *string { return &s }
+
+// SetInspectorFlag PUT /admin/users/:id/inspector
+func (h *AdminHandler) SetInspectorFlag(c *gin.Context) {
+	id, err := parseUUID(c, "id")
+	if err != nil {
+		return
+	}
+
+	var req struct {
+		IsInspector bool `json:"is_inspector"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	_, err = h.db.Exec(c.Request.Context(),
+		`UPDATE users SET is_inspector = $2, updated_at = NOW() WHERE id = $1`,
+		id, req.IsInspector,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to update inspector flag"})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	h.audit.Log(&userID, "update", "user_inspector", id, nil,
+		map[string]interface{}{"is_inspector": req.IsInspector},
+		strPtr(c.ClientIP()), strPtr(c.Request.UserAgent()),
+	)
+
+	c.JSON(http.StatusOK, dto.SuccessResponse{Message: "inspector flag updated"})
+}
+
+// CreateCrewMember POST /crew-members
+func (h *AdminHandler) CreateCrewMember(c *gin.Context) {
+	req := &dto.CreateCrewMemberRequest{}
+	if err := c.ShouldBindJSON(req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	var m models.CrewMember
+	err := h.db.QueryRow(c.Request.Context(),
+		`INSERT INTO crew_members (full_name, employee_id, created_by)
+		 VALUES ($1, $2, $3)
+		 RETURNING id, full_name, employee_id, is_active, created_by, created_at, updated_at`,
+		req.FullName, req.EmployeeID, userID,
+	).Scan(&m.ID, &m.FullName, &m.EmployeeID, &m.IsActive, &m.CreatedBy, &m.CreatedAt, &m.UpdatedAt)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to create crew member"})
+		return
+	}
+	c.JSON(http.StatusCreated, m)
+}
+
+// TriggerReminders POST /commercial/run-reminders  (admin, manual trigger for testing)
+func (h *AdminHandler) TriggerReminders(c *gin.Context) {
+	// reminderCron needs to be wired in — inject via AdminHandler or global ref
+	h.reminderCron.RunNow(c.Request.Context())
+	c.JSON(http.StatusOK, dto.SuccessResponse{Message: "reminder run triggered"})
+}
+
+// PUT /admin/crew-members/:id
+func (h *AdminHandler) UpdateCrewMember(c *gin.Context) {
+	id := c.Param("id")
+	var req struct {
+		FullName string `json:"full_name"`
+		IsActive bool   `json:"is_active"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	// Actualizamos basándonos en el STEP 3 de tu SQL
+	_, err := h.db.Exec(c.Request.Context(),
+		"UPDATE crew_members SET full_name = $1, is_active = $2, updated_at = NOW() WHERE id = $3",
+		req.FullName, req.IsActive, id)
+
+	if err != nil {
+		h.logger.Error("failed to update crew member", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update database"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Crew member updated successfully"})
+}
+
+// POST /admin/notification-recipients
+func (h *AdminHandler) CreateNotificationRecipient(c *gin.Context) {
+	var req struct {
+		EventType string `json:"event_type"`
+		Name      string `json:"name"`
+		Email     string `json:"email"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	// Insertamos basándonos en el STEP 6 de tu SQL
+	_, err := h.db.Exec(c.Request.Context(),
+		"INSERT INTO notification_recipients (event_type, name, email) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+		req.EventType, req.Name, req.Email)
+
+	if err != nil {
+		h.logger.Error("failed to create recipient", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Recipient created successfully"})
+}
+
+// DELETE /admin/notification-recipients/:id
+func (h *AdminHandler) DeleteNotificationRecipient(c *gin.Context) {
+	id := c.Param("id")
+
+	_, err := h.db.Exec(c.Request.Context(), "DELETE FROM notification_recipients WHERE id = $1", id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete recipient"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Recipient deleted"})
+}
+
+// GET /notification-recipients
+func (h *AdminHandler) ListNotificationRecipients(c *gin.Context) {
+	// Consultamos la tabla creada en el STEP 6 de tu migración
+	rows, err := h.db.Query(c.Request.Context(),
+		"SELECT id, event_type, name, email, is_active, created_at FROM notification_recipients ORDER BY event_type ASC")
+
+	if err != nil {
+		h.logger.Error("failed to list notification recipients", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+	defer rows.Close()
+
+	var recipients []any // Recomiendo crear un DTO para esto
+	for rows.Next() {
+		var r struct {
+			ID        string `json:"id"`
+			EventType string `json:"event_type"`
+			Name      string `json:"name"`
+			Email     string `json:"email"`
+			IsActive  bool   `json:"is_active"`
+			CreatedAt string `json:"created_at"`
+		}
+		if err := rows.Scan(&r.ID, &r.EventType, &r.Name, &r.Email, &r.IsActive, &r.CreatedAt); err != nil {
+			continue
+		}
+		recipients = append(recipients, r)
+	}
+
+	c.JSON(http.StatusOK, recipients)
+}

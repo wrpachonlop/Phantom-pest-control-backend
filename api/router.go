@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 
 	"strings"
@@ -18,6 +19,8 @@ import (
 
 // NewRouter constructs the Gin engine with all routes and middleware wired.
 func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) *gin.Engine {
+	ctx := context.Background()
+
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -43,17 +46,33 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) *gin.En
 	// Repositories
 	clientRepo := repositories.NewClientRepository(db)
 	reportRepo := repositories.NewReportRepository(db)
+	commercialRepo := repositories.NewCommercialRepository(db)
+
+	var notifier services.NotificationSender
+	if cfg.Environment == "production" {
+		notifier = services.NewEmailNotifier(logger)
+	} else {
+		notifier = services.NewLogNotifier(logger)
+	}
 
 	// Services
 	clientSvc := services.NewClientService(clientRepo, auditSvc, logger)
 	reportSvc := services.NewReportService(reportRepo, logger)
 	followUpSvc := services.NewFollowUpService(db, auditSvc, logger)
+	commercialSvc := services.NewCommercialService(
+		db, commercialRepo, clientRepo, notifier, auditSvc, logger,
+	)
+	reminderCron := services.NewReminderCron(commercialRepo, notifier, logger, 9)
+
+	go reminderCron.Start(ctx) // pass application context
 
 	// Handlers
 	clientH := handlers.NewClientHandler(clientSvc, logger)
 	reportH := handlers.NewReportHandler(reportSvc, logger)
 	followUpH := handlers.NewFollowUpHandler(followUpSvc, logger)
-	adminH := handlers.NewAdminHandler(db, auditSvc, logger)
+	adminH := handlers.NewAdminHandler(db, auditSvc, logger, reminderCron)
+	commercialH := handlers.NewCommercialHandler(commercialSvc, commercialRepo, logger)
+	locationH := handlers.NewLocationHandler(db, logger)
 
 	// ── Public Routes ─────────────────────────────────────────
 
@@ -94,6 +113,21 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) *gin.En
 		// Reports
 		auth.GET("/reports", reportH.GetReport)
 		auth.GET("/reports/dashboard", reportH.GetDashboard)
+		// ── Commercial Workflow ───────────────────────────────────
+
+		auth.GET("/clients/:id/commercial", commercialH.GetDetails)
+		auth.PUT("/clients/:id/commercial", commercialH.UpdateDetails)
+		auth.POST("/clients/:id/commercial/transition", commercialH.Transition)
+		auth.GET("/clients/:id/commercial/history", commercialH.GetTransitionHistory)
+		auth.GET("/clients/:id/commercial/assignments", commercialH.GetAssignmentHistory)
+		auth.PUT("/clients/:id/commercial/inspector", commercialH.ReassignInspector)
+
+		// Lookup tables (authenticated read)
+		auth.GET("/inspectors", commercialH.ListInspectors)
+		auth.GET("/crew-members", commercialH.ListCrewMembers)
+
+		// Dashboard alerts
+		auth.GET("/commercial/alerts", commercialH.GetDashboardAlerts)
 
 		// ── Admin-only routes ─────────────────────────────────
 		admin := auth.Group("")
@@ -122,7 +156,28 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) *gin.En
 
 			// Audit log (global)
 			admin.GET("/audit-logs", adminH.GetAuditLog)
+
+			admin.POST("/crew-members", adminH.CreateCrewMember)
+			admin.PUT("/crew-members/:id", adminH.UpdateCrewMember)
+
+			// Admin-only: inspector flag management
+			admin.PUT("/admin/users/:id/inspector", adminH.SetInspectorFlag)
+
+			// Admin-only: notification recipients
+			admin.GET("/notification-recipients", adminH.ListNotificationRecipients)
+			admin.POST("/notification-recipients", adminH.CreateNotificationRecipient)
+			admin.DELETE("/notification-recipients/:id", adminH.DeleteNotificationRecipient)
+
+			// Admin trigger for manual reminder run
+			admin.POST("/commercial/run-reminders", adminH.TriggerReminders)
+
+			// Locations (phase 1 — read/write new table)
+			auth.GET("/clients/:id/locations", locationH.ListByClient)
+			auth.POST("/clients/:id/locations", locationH.Create)
+			auth.PUT("/locations/:id", locationH.Update)
+			admin.DELETE("/locations/:id", locationH.Delete)
 		}
+
 	}
 
 	// 404 handler

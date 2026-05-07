@@ -200,13 +200,14 @@ func (h *CommercialHandler) ListInspectors(c *gin.Context) {
 // ListCrewMembers GET /crew-members
 func (h *CommercialHandler) ListCrewMembers(c *gin.Context) {
 	fmt.Println("Handler invoked: ListCrewMembers") // Debug log to verify handler is called
-	members, err := h.commercialRepo.ListCrewMembers(c.Request.Context())
-	if err != nil {
-		h.logger.Error("CRITICAL: commercialRepo is nil in handler")
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to fetch crew members"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"data": members})
+	c.JSON(200, gin.H{"data": "esto es una prueba sin DB"})
+	// members, err := h.commercialRepo.ListCrewMembers(c.Request.Context())
+	// if err != nil {
+	// 	h.logger.Error("CRITICAL: commercialRepo is nil in handler")
+	// 	c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to fetch crew members"})
+	// 	return
+	// }
+	// c.JSON(http.StatusOK, gin.H{"data": members})
 }
 
 // GetDashboardAlerts GET /commercial/alerts

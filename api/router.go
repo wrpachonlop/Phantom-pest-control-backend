@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"strings"
@@ -47,7 +48,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) *gin.En
 	clientRepo := repositories.NewClientRepository(db)
 	reportRepo := repositories.NewReportRepository(db)
 	commercialRepo := repositories.NewCommercialRepository(db)
-
+	fmt.Println("Commercial repository initialized:", commercialRepo) // Debug log to verify initialization
 	var notifier services.NotificationSender
 	if cfg.Environment == "production" {
 		notifier = services.NewEmailNotifier(logger)
@@ -62,6 +63,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) *gin.En
 	commercialSvc := services.NewCommercialService(
 		db, commercialRepo, clientRepo, notifier, auditSvc, logger,
 	)
+	fmt.Println("Commercial service initialized:", commercialSvc) // Debug log to verify initialization
 	reminderCron := services.NewReminderCron(commercialRepo, notifier, logger, 9)
 
 	go reminderCron.Start(ctx) // pass application context
@@ -72,6 +74,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) *gin.En
 	followUpH := handlers.NewFollowUpHandler(followUpSvc, logger)
 	adminH := handlers.NewAdminHandler(db, auditSvc, logger, reminderCron)
 	commercialH := handlers.NewCommercialHandler(commercialSvc, commercialRepo, logger)
+	fmt.Println("Commercial handler initialized:", commercialH) // Debug log to verify initialization
 	locationH := handlers.NewLocationHandler(db, logger)
 
 	// ── Public Routes ─────────────────────────────────────────

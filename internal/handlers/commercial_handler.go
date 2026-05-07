@@ -198,8 +198,10 @@ func (h *CommercialHandler) ListInspectors(c *gin.Context) {
 
 // ListCrewMembers GET /crew-members
 func (h *CommercialHandler) ListCrewMembers(c *gin.Context) {
+	h.logger.Info("Handler invoked")
 	members, err := h.commercialRepo.ListCrewMembers(c.Request.Context())
 	if err != nil {
+		h.logger.Error("CRITICAL: commercialRepo is nil in handler")
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to fetch crew members"})
 		return
 	}

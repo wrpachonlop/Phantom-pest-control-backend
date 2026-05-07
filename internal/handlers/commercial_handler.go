@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -198,7 +199,7 @@ func (h *CommercialHandler) ListInspectors(c *gin.Context) {
 
 // ListCrewMembers GET /crew-members
 func (h *CommercialHandler) ListCrewMembers(c *gin.Context) {
-	h.logger.Info("Handler invoked")
+	fmt.Println("Handler invoked: ListCrewMembers") // Debug log to verify handler is called
 	members, err := h.commercialRepo.ListCrewMembers(c.Request.Context())
 	if err != nil {
 		h.logger.Error("CRITICAL: commercialRepo is nil in handler")

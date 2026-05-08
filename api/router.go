@@ -163,6 +163,9 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) *gin.En
 			admin.POST("/crew-members", adminH.CreateCrewMember)
 			admin.PUT("/crew-members/:id", adminH.UpdateCrewMember)
 
+			// Admin-only: create user
+			admin.POST("/admin/inspectors", adminH.CreateExternalInspector)
+
 			// Admin-only: inspector flag management
 			admin.PUT("/admin/users/:id/inspector", adminH.SetInspectorFlag)
 

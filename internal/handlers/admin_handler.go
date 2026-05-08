@@ -636,3 +636,66 @@ func (h *AdminHandler) ListNotificationRecipients(c *gin.Context) {
 
 	c.JSON(http.StatusOK, recipients)
 }
+
+// POST /admin/external-inspectors
+func (h *AdminHandler) CreateExternalInspector(c *gin.Context) {
+	var req struct {
+		FullName string `json:"full_name" binding:"required"`
+		Email    string `json:"email" binding:"required,email"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
+		return
+	}
+
+	// 1. Obtener y parsear el ID del Admin (quien ejecuta)
+	adminIDStr, _ := c.Get("user_id")
+	adminUUID, err := uuid.Parse(adminIDStr.(string))
+	if err != nil {
+		h.logger.Error("failed to parse admin uuid", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	// 2. Ejecutar la inserción del nuevo inspector
+	var newID uuid.UUID
+	err = h.db.QueryRow(c.Request.Context(),
+		`INSERT INTO users (id, full_name, email, role, is_inspector, is_active) 
+         VALUES (gen_random_uuid(), $1, $2, 'user', true, true) 
+         RETURNING id`,
+		req.FullName, req.Email).Scan(&newID)
+
+	if err != nil {
+		h.logger.Error("Failed to create external inspector", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error de base de datos"})
+		return
+	}
+
+	// 3. Preparar datos para el log (newData)
+	newData := map[string]interface{}{
+		"full_name":    req.FullName,
+		"email":        req.Email,
+		"is_inspector": true,
+	}
+
+	// 4. Llamada al Audit.Log ajustada a tu middleware.AuditService
+	ip := c.ClientIP()
+	ua := c.Request.UserAgent()
+
+	h.audit.Log(
+		&adminUUID, // *uuid.UUID
+		"create",   // action
+		"users",    // entityType
+		newID,      // entityID (uuid.UUID)
+		nil,        // oldValues
+		newData,    // newValues
+		&ip,        // *ipAddress
+		&ua,        // *userAgent
+	)
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Inspector externo creado",
+		"id":      newID,
+	})
+}

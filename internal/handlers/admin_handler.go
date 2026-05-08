@@ -638,6 +638,7 @@ func (h *AdminHandler) ListNotificationRecipients(c *gin.Context) {
 }
 
 // POST /admin/external-inspectors
+// POST /admin/external-inspectors
 func (h *AdminHandler) CreateExternalInspector(c *gin.Context) {
 	var req struct {
 		FullName string `json:"full_name" binding:"required"`
@@ -649,18 +650,35 @@ func (h *AdminHandler) CreateExternalInspector(c *gin.Context) {
 		return
 	}
 
-	// 1. Obtener y parsear el ID del Admin (quien ejecuta)
-	adminIDStr, _ := c.Get("user_id")
-	adminUUID, err := uuid.Parse(adminIDStr.(string))
-	if err != nil {
-		h.logger.Error("failed to parse admin uuid", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+	// 1. Obtener el ID del Admin (quien ejecuta)
+	adminIDVal, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "No se encontró contexto de usuario"})
 		return
+	}
+
+	// Corregimos la aserción: el valor ya viene como uuid.UUID del middleware
+	adminUUID, ok := adminIDVal.(uuid.UUID)
+	if !ok {
+		// Por seguridad, si llegara como string, intentamos parsearlo
+		if adminIDStr, isString := adminIDVal.(string); isString {
+			parsedUUID, err := uuid.Parse(adminIDStr)
+			if err != nil {
+				h.logger.Error("failed to parse admin uuid string", zap.Error(err))
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Formato de ID inválido"})
+				return
+			}
+			adminUUID = parsedUUID
+		} else {
+			h.logger.Error("user_id context is neither uuid.UUID nor string")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error interno de autenticación"})
+			return
+		}
 	}
 
 	// 2. Ejecutar la inserción del nuevo inspector
 	var newID uuid.UUID
-	err = h.db.QueryRow(c.Request.Context(),
+	err := h.db.QueryRow(c.Request.Context(),
 		`INSERT INTO users (id, full_name, email, role, is_inspector, is_active) 
          VALUES (gen_random_uuid(), $1, $2, 'user', true, true) 
          RETURNING id`,
@@ -679,19 +697,19 @@ func (h *AdminHandler) CreateExternalInspector(c *gin.Context) {
 		"is_inspector": true,
 	}
 
-	// 4. Llamada al Audit.Log ajustada a tu middleware.AuditService
+	// 4. Llamada al Audit.Log
 	ip := c.ClientIP()
 	ua := c.Request.UserAgent()
 
 	h.audit.Log(
-		&adminUUID, // *uuid.UUID
-		"create",   // action
-		"users",    // entityType
-		newID,      // entityID (uuid.UUID)
-		nil,        // oldValues
-		newData,    // newValues
-		&ip,        // *ipAddress
-		&ua,        // *userAgent
+		&adminUUID,
+		"create",
+		"users",
+		newID,
+		nil,
+		newData,
+		&ip,
+		&ua,
 	)
 
 	c.JSON(http.StatusCreated, gin.H{

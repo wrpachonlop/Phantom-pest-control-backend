@@ -637,8 +637,7 @@ func (h *AdminHandler) ListNotificationRecipients(c *gin.Context) {
 	c.JSON(http.StatusOK, recipients)
 }
 
-// POST /admin/external-inspectors
-// POST /admin/external-inspectors
+// POST /admin/inspectors
 func (h *AdminHandler) CreateExternalInspector(c *gin.Context) {
 	var req struct {
 		FullName string `json:"full_name" binding:"required"`
@@ -650,61 +649,61 @@ func (h *AdminHandler) CreateExternalInspector(c *gin.Context) {
 		return
 	}
 
-	// 1. Obtener el ID del Admin (quien ejecuta)
+	// 1. Obtener el ID del Admin del contexto (Aserción segura corregida)
 	adminIDVal, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "No se encontró contexto de usuario"})
 		return
 	}
 
-	// Corregimos la aserción: el valor ya viene como uuid.UUID del middleware
 	adminUUID, ok := adminIDVal.(uuid.UUID)
 	if !ok {
-		// Por seguridad, si llegara como string, intentamos parsearlo
+		// Fallback por si el middleware entrega string
 		if adminIDStr, isString := adminIDVal.(string); isString {
 			parsedUUID, err := uuid.Parse(adminIDStr)
 			if err != nil {
 				h.logger.Error("failed to parse admin uuid string", zap.Error(err))
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Formato de ID inválido"})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "ID de administrador inválido"})
 				return
 			}
 			adminUUID = parsedUUID
 		} else {
 			h.logger.Error("user_id context is neither uuid.UUID nor string")
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error interno de autenticación"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error de autenticación"})
 			return
 		}
 	}
 
-	// 2. Ejecutar la inserción del nuevo inspector
+	// 2. Ejecutar la inserción en external_inspectors
 	var newID uuid.UUID
 	err := h.db.QueryRow(c.Request.Context(),
-		`INSERT INTO users (id, full_name, email, role, is_inspector, is_active) 
-         VALUES (gen_random_uuid(), $1, $2, 'user', true, true) 
+		`INSERT INTO external_inspectors (full_name, email, is_active) 
+         VALUES ($1, $2, true) 
          RETURNING id`,
 		req.FullName, req.Email).Scan(&newID)
 
 	if err != nil {
 		h.logger.Error("Failed to create external inspector", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error de base de datos"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al guardar el inspector externo"})
 		return
 	}
 
-	// 3. Preparar datos para el log (newData)
+	// 3. Preparar datos para el log (Auditoría)
 	newData := map[string]interface{}{
 		"full_name":    req.FullName,
 		"email":        req.Email,
-		"is_inspector": true,
+		"is_active":    true,
+		"origin_table": "external_inspectors",
 	}
 
-	// 4. Llamada al Audit.Log
 	ip := c.ClientIP()
 	ua := c.Request.UserAgent()
 
+	// Usamos el entity_type 'external_inspectors' para claridad en los logs
 	h.audit.Log(
 		&adminUUID,
 		"create",
-		"users",
+		"external_inspectors",
 		newID,
 		nil,
 		newData,
@@ -713,7 +712,7 @@ func (h *AdminHandler) CreateExternalInspector(c *gin.Context) {
 	)
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Inspector externo creado",
+		"message": "Inspector externo creado exitosamente",
 		"id":      newID,
 	})
 }

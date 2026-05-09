@@ -510,25 +510,32 @@ func (h *AdminHandler) SetInspectorFlag(c *gin.Context) {
 
 // CreateCrewMember POST /crew-members
 func (h *AdminHandler) CreateCrewMember(c *gin.Context) {
-	req := &dto.CreateCrewMemberRequest{}
-	if err := c.ShouldBindJSON(req); err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+	var req struct {
+		FullName    string  `json:"full_name" binding:"required"`
+		Email       string  `json:"email" binding:"required,email"`
+		EmployeeID  *string `json:"employee_id"`
+		IsInspector bool    `json:"is_inspector"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields"})
 		return
 	}
 
-	userID := middleware.GetUserID(c)
-	var m models.CrewMember
+	var newID uuid.UUID
 	err := h.db.QueryRow(c.Request.Context(),
-		`INSERT INTO crew_members (full_name, employee_id, created_by)
-		 VALUES ($1, $2, $3)
-		 RETURNING id, full_name, employee_id, is_active, created_by, created_at, updated_at`,
-		req.FullName, req.EmployeeID, userID,
-	).Scan(&m.ID, &m.FullName, &m.EmployeeID, &m.IsActive, &m.CreatedBy, &m.CreatedAt, &m.UpdatedAt)
+		`INSERT INTO crew_members (full_name, email, employee_id, is_inspector, is_active) 
+         VALUES ($1, $2, $3, $4, true) 
+         RETURNING id`,
+		req.FullName, req.Email, req.EmployeeID, req.IsInspector).Scan(&newID)
+
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to create crew member"})
+		h.logger.Error("Failed to create crew member", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
-	c.JSON(http.StatusCreated, m)
+
+	c.JSON(http.StatusCreated, gin.H{"id": newID})
 }
 
 // TriggerReminders POST /commercial/run-reminders  (admin, manual trigger for testing)

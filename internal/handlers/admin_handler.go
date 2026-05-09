@@ -577,12 +577,27 @@ func (h *AdminHandler) CreateCrewMember(c *gin.Context) {
 		return
 	}
 
+	adminIDVal, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication context missing"})
+		return
+	}
+
+	adminUUID, ok := adminIDVal.(uuid.UUID)
+	if !ok {
+		// Manejo de fallback si el ID viene como string
+		if idStr, isStr := adminIDVal.(string); isStr {
+			parsed, _ := uuid.Parse(idStr)
+			adminUUID = parsed
+		}
+	}
+
 	var newID uuid.UUID
 	err := h.db.QueryRow(c.Request.Context(),
-		`INSERT INTO crew_members (full_name, email, employee_id, is_inspector, is_active) 
-         VALUES ($1, $2, $3, $4, true) 
+		`INSERT INTO crew_members (full_name, email, employee_id, is_inspector, is_active, created_by) 
+         VALUES ($1, $2, $3, $4, true, $5) 
          RETURNING id`,
-		req.FullName, req.Email, req.EmployeeID, req.IsInspector).Scan(&newID)
+		req.FullName, req.Email, req.EmployeeID, req.IsInspector, adminUUID).Scan(&newID)
 
 	if err != nil {
 		h.logger.Error("Failed to create crew member", zap.Error(err))

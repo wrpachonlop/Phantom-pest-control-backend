@@ -605,6 +605,19 @@ func (h *AdminHandler) CreateCrewMember(c *gin.Context) {
 		return
 	}
 
+	ip := c.ClientIP()
+	ua := c.Request.UserAgent()
+	h.audit.Log(
+		&adminUUID,
+		"create",
+		"crew_members",
+		newID,
+		nil,
+		req,
+		&ip,
+		&ua,
+	)
+
 	c.JSON(http.StatusCreated, gin.H{"id": newID})
 }
 

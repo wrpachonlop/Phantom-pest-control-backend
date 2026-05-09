@@ -508,6 +508,61 @@ func (h *AdminHandler) SetInspectorFlag(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.SuccessResponse{Message: "inspector flag updated"})
 }
 
+// SetCrewMemberInspectorFlag PUT /admin/crew/:id/inspector
+func (h *AdminHandler) SetCrewMemberInspectorFlag(c *gin.Context) {
+	// 1. Usar el ayudante de UUID que ya tienes en otros handlers
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid crew member id"})
+		return
+	}
+
+	var req struct {
+		IsInspector bool `json:"is_inspector"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	// 2. Ejecutar el UPDATE
+	// Nota: El trigger trg_crew_members_updated_at ya se encarga del updated_at
+	_, err = h.db.Exec(c.Request.Context(),
+		`UPDATE crew_members SET is_inspector = $1 WHERE id = $2`,
+		req.IsInspector, id,
+	)
+	if err != nil {
+		h.logger.Error("failed to update crew inspector flag", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to update inspector flag"})
+		return
+	}
+
+	// 3. Auditoría con el ID del Admin (Aserción segura)
+	adminIDVal, exists := c.Get("user_id")
+	var adminUUID uuid.UUID
+	if exists {
+		if uid, ok := adminIDVal.(uuid.UUID); ok {
+			adminUUID = uid
+		}
+	}
+
+	ip := c.ClientIP()
+	ua := c.Request.UserAgent()
+
+	h.audit.Log(
+		&adminUUID,
+		"update",
+		"crew_members", // Usamos el nombre de la tabla para el entity_type
+		id,
+		nil,
+		map[string]interface{}{"is_inspector": req.IsInspector},
+		&ip,
+		&ua,
+	)
+
+	c.JSON(http.StatusOK, dto.SuccessResponse{Message: "crew member inspector flag updated"})
+}
+
 // CreateCrewMember POST /crew-members
 func (h *AdminHandler) CreateCrewMember(c *gin.Context) {
 	var req struct {

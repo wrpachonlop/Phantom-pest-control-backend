@@ -72,14 +72,15 @@ const (
 // =============================================================
 
 type User struct {
-	ID        uuid.UUID `db:"id" json:"id"`
-	Email     string    `db:"email" json:"email"`
-	FullName  *string   `db:"full_name" json:"full_name"`
-	Role      UserRole  `db:"role" json:"role"`
-	AvatarURL *string   `db:"avatar_url" json:"avatar_url"`
-	IsActive  bool      `db:"is_active" json:"is_active"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+	ID          uuid.UUID `db:"id" json:"id"`
+	Email       string    `db:"email" json:"email"`
+	FullName    *string   `db:"full_name" json:"full_name"`
+	Role        UserRole  `db:"role" json:"role"`
+	AvatarURL   *string   `db:"avatar_url" json:"avatar_url"`
+	IsActive    bool      `db:"is_active" json:"is_active"`
+	IsInspector bool      `db:"is_inspector" json:"is_inspector"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // =============================================================
@@ -133,11 +134,11 @@ type Client struct {
 type ClientFull struct {
 	Client
 	ContactMethod *ContactMethod `json:"contact_method"`
-	PestIssues    []PestIssue   `json:"pest_issues"`
-	Phones        []Phone       `json:"phones"`
-	Emails        []Email       `json:"emails"`
-	SoldByUser    *User         `json:"sold_by_user,omitempty"`
-	CreatedByUser *User         `json:"created_by_user,omitempty"`
+	PestIssues    []PestIssue    `json:"pest_issues"`
+	Phones        []Phone        `json:"phones"`
+	Emails        []Email        `json:"emails"`
+	SoldByUser    *User          `json:"sold_by_user,omitempty"`
+	CreatedByUser *User          `json:"created_by_user,omitempty"`
 }
 
 // =============================================================

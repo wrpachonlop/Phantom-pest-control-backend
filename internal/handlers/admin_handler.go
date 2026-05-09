@@ -192,7 +192,7 @@ func (h *AdminHandler) UpdatePestIssue(c *gin.Context) {
 // ListUsers GET /admin/users
 func (h *AdminHandler) ListUsers(c *gin.Context) {
 	rows, err := h.db.Query(c.Request.Context(),
-		`SELECT id, email, full_name, role, is_active, created_at, updated_at FROM users ORDER BY created_at DESC`)
+		`SELECT id, email, full_name, role, is_active, is_inspector, created_at, updated_at FROM users ORDER BY created_at DESC`)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to fetch users"})
 		return
@@ -202,7 +202,7 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
 	users := []*models.User{}
 	for rows.Next() {
 		u := &models.User{}
-		rows.Scan(&u.ID, &u.Email, &u.FullName, &u.Role, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
+		rows.Scan(&u.ID, &u.Email, &u.FullName, &u.Role, &u.IsActive, &u.IsInspector, &u.CreatedAt, &u.UpdatedAt)
 		users = append(users, u)
 	}
 	c.JSON(http.StatusOK, gin.H{"data": users})

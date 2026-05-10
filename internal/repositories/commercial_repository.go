@@ -342,7 +342,7 @@ type PendingReminderRow struct {
 func (r *CommercialRepository) ListCrewMembers(ctx context.Context) ([]models.CrewMember, error) {
 	fmt.Println("Arriving to the query ListCrewMemebers")
 	rows, err := r.db.Query(ctx, `
-		SELECT id, full_name, employee_id, is_active, is_inspector, created_by, created_at, updated_at
+		SELECT id, full_name, employee_id, email, phone_number, is_active, is_inspector, created_by, created_at, updated_at
 		FROM crew_members
 		ORDER BY full_name
 	`)
@@ -355,7 +355,7 @@ func (r *CommercialRepository) ListCrewMembers(ctx context.Context) ([]models.Cr
 	members := []models.CrewMember{}
 	for rows.Next() {
 		m := models.CrewMember{}
-		rows.Scan(&m.ID, &m.FullName, &m.EmployeeID, &m.IsActive, &m.IsInspector, &m.CreatedBy, &m.CreatedAt, &m.UpdatedAt)
+		rows.Scan(&m.ID, &m.FullName, &m.EmployeeID, &m.Email, &m.PhoneNumber, &m.IsActive, &m.IsInspector, &m.CreatedBy, &m.CreatedAt, &m.UpdatedAt)
 		members = append(members, m)
 	}
 	return members, nil

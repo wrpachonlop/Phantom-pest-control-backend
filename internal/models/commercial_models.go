@@ -109,6 +109,8 @@ type CrewMember struct {
 	ID          uuid.UUID  `db:"id"          json:"id"`
 	FullName    string     `db:"full_name"   json:"full_name"`
 	EmployeeID  *string    `db:"employee_id" json:"employee_id"`
+	Email       *string    `db:"email"       json:"email"`
+	PhoneNumber *string    `db:"phone_number" json:"phone_number"`
 	IsActive    bool       `db:"is_active"   json:"is_active"`
 	IsInspector bool       `db:"is_inspector" json:"is_inspector"`
 	CreatedBy   *uuid.UUID `db:"created_by"  json:"created_by"`

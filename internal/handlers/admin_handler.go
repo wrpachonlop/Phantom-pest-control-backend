@@ -631,10 +631,18 @@ func (h *AdminHandler) TriggerReminders(c *gin.Context) {
 
 // PUT /admin/crew-members/:id
 func (h *AdminHandler) UpdateCrewMember(c *gin.Context) {
-	id := c.Param("id")
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid crew member ID"})
+		return
+	}
 	var req struct {
-		FullName string `json:"full_name"`
-		IsActive bool   `json:"is_active"`
+		FullName    string  `json:"full_name"`
+		Email       string  `json:"email"`
+		PhoneNumber string  `json:"phone_number"`
+		EmployeeID  *string `json:"employee_id"`
+		IsActive    bool    `json:"is_active"`
+		IsInspector bool    `json:"is_inspector"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -643,15 +651,25 @@ func (h *AdminHandler) UpdateCrewMember(c *gin.Context) {
 	}
 
 	// Actualizamos basándonos en el STEP 3 de tu SQL
-	_, err := h.db.Exec(c.Request.Context(),
-		"UPDATE crew_members SET full_name = $1, is_active = $2, updated_at = NOW() WHERE id = $3",
-		req.FullName, req.IsActive, id)
+	_, err = h.db.Exec(c.Request.Context(),
+		`UPDATE crew_members 
+         SET full_name = $1, email = $2, phone_number = $3, 
+             employee_id = $4, is_active = $5, is_inspector = $6, 
+             updated_at = NOW() 
+         WHERE id = $7`,
+		req.FullName, req.Email, req.PhoneNumber, req.EmployeeID, req.IsActive, req.IsInspector, id)
 
 	if err != nil {
 		h.logger.Error("failed to update crew member", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update database"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return
 	}
+
+	adminIDVal, _ := c.Get("user_id")
+	adminUUID, _ := adminIDVal.(uuid.UUID)
+	ip, ua := c.ClientIP(), c.Request.UserAgent()
+
+	h.audit.Log(&adminUUID, "update", "crew_members", id, nil, req, &ip, &ua)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Crew member updated successfully"})
 }

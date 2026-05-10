@@ -568,6 +568,7 @@ func (h *AdminHandler) CreateCrewMember(c *gin.Context) {
 	var req struct {
 		FullName    string  `json:"full_name" binding:"required"`
 		Email       string  `json:"email" binding:"required,email"`
+		PhoneNumber string  `json:"phone_number"`
 		EmployeeID  *string `json:"employee_id"`
 		IsInspector bool    `json:"is_inspector"`
 	}
@@ -594,10 +595,10 @@ func (h *AdminHandler) CreateCrewMember(c *gin.Context) {
 
 	var newID uuid.UUID
 	err := h.db.QueryRow(c.Request.Context(),
-		`INSERT INTO crew_members (full_name, email, employee_id, is_inspector, is_active, created_by) 
-         VALUES ($1, $2, $3, $4, true, $5) 
+		`INSERT INTO crew_members (full_name, email, phone_number, employee_id, is_inspector, is_active, created_by) 
+         VALUES ($1, $2, $3, $4, $5, true ,  $6) 
          RETURNING id`,
-		req.FullName, req.Email, req.EmployeeID, req.IsInspector, adminUUID).Scan(&newID)
+		req.FullName, req.Email, req.PhoneNumber, req.EmployeeID, req.IsInspector, adminUUID).Scan(&newID)
 
 	if err != nil {
 		h.logger.Error("Failed to create crew member", zap.Error(err))

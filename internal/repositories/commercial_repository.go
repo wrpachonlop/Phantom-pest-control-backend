@@ -365,12 +365,17 @@ func (r *CommercialRepository) ListCrewMembers(ctx context.Context) ([]models.Cr
 
 // ListInspectors returns users with is_inspector = true.
 func (r *CommercialRepository) ListInspectors(ctx context.Context) ([]models.User, error) {
-	rows, err := r.db.Query(ctx, `
-		SELECT id, email, full_name, role, avatar_url, is_active, created_at, updated_at
-		FROM users
-		WHERE is_inspector = true AND is_active = true
-		ORDER BY full_name
-	`)
+	query := `
+        SELECT id, email, full_name, 'admin' as role, '' as avatar_url, is_active, created_at, updated_at
+        FROM users
+        WHERE is_inspector = true AND is_active = true
+        UNION ALL
+        SELECT id, email, full_name, 'crew' as role, '' as avatar_url, is_active, created_at, updated_at
+        FROM crew_members
+        WHERE is_inspector = true AND is_active = true
+        ORDER BY full_name
+    `
+	rows, err := r.db.Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -379,7 +384,11 @@ func (r *CommercialRepository) ListInspectors(ctx context.Context) ([]models.Use
 	inspectors := []models.User{}
 	for rows.Next() {
 		u := models.User{}
-		rows.Scan(&u.ID, &u.Email, &u.FullName, &u.Role, &u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
+		// Escaneamos manteniendo la compatibilidad con tu struct models.User
+		err := rows.Scan(&u.ID, &u.Email, &u.FullName, &u.Role, &u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
 		inspectors = append(inspectors, u)
 	}
 	return inspectors, nil

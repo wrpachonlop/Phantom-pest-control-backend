@@ -128,6 +128,8 @@ type Client struct {
 	CreatedBy          uuid.UUID    `db:"created_by" json:"created_by"`
 	CreatedAt          time.Time    `db:"created_at" json:"created_at"`
 	UpdatedAt          time.Time    `db:"updated_at" json:"updated_at"`
+	CrewMemberID       *uuid.UUID   `db:"crew_member_id" json:"crew_member_id"`
+	InspectorID        *uuid.UUID   `db:"inspector_id" json:"inspector_id"`
 }
 
 // ClientFull is the enriched client view with related entities.

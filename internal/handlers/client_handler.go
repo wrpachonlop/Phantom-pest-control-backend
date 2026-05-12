@@ -90,6 +90,16 @@ func (h *ClientHandler) Create(c *gin.Context) {
 		return
 	}
 
+	if req.PropertyType == "commercial" {
+		if req.InspectorID == nil {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "inspector assignment is required for commercial clients"})
+			return
+		}
+		if req.ContactMethodID.String() == "bd22ef5e-e0ce-483d-97c7-5dae6aa1f3e1" && req.CrewMemeberID == nil {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "crew member must be selected when lead source is crew member"})
+			return
+		}
+	}
 	methodId := req.ContactMethodID.String()
 	switch methodId {
 	case IDPhoneCall, IDText:
@@ -107,7 +117,7 @@ func (h *ClientHandler) Create(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	clientType := strings.ToLower(strings.TrimSpace(string(req.ClientType)))
 	statusStr := strings.ToLower(strings.TrimSpace(string(req.Status)))
 
@@ -117,8 +127,8 @@ func (h *ClientHandler) Create(c *gin.Context) {
 	isNewBlue := isInitial && statusStr == "blue"
 	isExempt := isSpam || isNewBlue
 
-	fmt.Printf("DEBUG: Type: %q | Status: %q | Exempt: %v | Pests: %d\n", 
-    clientType, statusStr, isExempt, len(req.PestIssues))
+	fmt.Printf("DEBUG: Type: %q | Status: %q | Exempt: %v | Pests: %d\n",
+		clientType, statusStr, isExempt, len(req.PestIssues))
 
 	if !isExempt {
 		if len(req.PestIssues) == 0 {

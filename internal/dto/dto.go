@@ -29,6 +29,9 @@ type CreateClientRequest struct {
 	Phones     []PhoneInput `json:"phones"`
 	Emails     []EmailInput `json:"emails"`
 	PestIssues []uuid.UUID  `json:"pest_issues" validate:"required,min=1"`
+
+	CrewMemeberID *uuid.UUID `json:"crew_member_id"` // optional, for crew member referrals
+	InspectorID   *uuid.UUID `json:"inspector_id"`   // optional, for commercial leads
 }
 
 // UpdateClientRequest is the payload for PUT /clients/:id

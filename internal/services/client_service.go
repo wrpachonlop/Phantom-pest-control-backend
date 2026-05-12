@@ -144,6 +144,8 @@ func (s *ClientService) Create(
 		SaleRange:          req.SaleRange,
 		SoldDate:           soldDate,
 		CreatedBy:          createdBy,
+		CrewMemberID:       req.CrewMemeberID,
+		InspectorID:        req.InspectorID,
 	}
 
 	created, err := s.clientRepo.Create(ctx, client, phones, emails, req.PestIssues)

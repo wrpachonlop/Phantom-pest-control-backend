@@ -243,7 +243,32 @@ func (r *ClientRepository) Create(
 	if err != nil {
 		return nil, fmt.Errorf("insert client: %w", err)
 	}
+	if client.PropertyType == "commercial" {
+		// Determinamos el lead_source basado en el ContactMethodID
+		// Debes comparar con el ID real de tu tabla para "Referred by staff"
+		leadSource := "office"
+		if client.ContactMethodID.String() == "bd22ef5e-e0ce-483d-97c7-5dae6aa1f3e1" {
+			leadSource = "crew_member"
+		}
 
+		_, err = tx.Exec(ctx, `
+            INSERT INTO commercial_client_details (
+                client_id, 
+                workflow_status, 
+                lead_source, 
+                crew_member_id, 
+                inspector_id
+            ) VALUES ($1, 'assigned', $2, $3, $4)
+        `,
+			client.ID,
+			leadSource,
+			client.CrewMemberID, // Del struct que actualizamos en el DTO/Service
+			client.InspectorID,  // Del struct que actualizamos en el DTO/Service
+		)
+		if err != nil {
+			return nil, fmt.Errorf("insert commercial details: %w", err)
+		}
+	}
 	// Insert phones
 	for _, p := range phones {
 		_, err = tx.Exec(ctx,

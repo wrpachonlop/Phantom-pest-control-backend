@@ -109,6 +109,7 @@ func (h *ClientHandler) Create(c *gin.Context) {
 		}
 	case IDEstimateForm, IDMail:
 		if len(req.Emails) == 0 || req.Emails[0].Email == "" {
+			fmt.Printf("DEBUG: Emails: %+v\n", req.Emails)
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "email is required for estimate forms or mail"})
 			return
 		}

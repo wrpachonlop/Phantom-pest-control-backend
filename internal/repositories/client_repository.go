@@ -86,6 +86,18 @@ func (r *ClientRepository) List(ctx context.Context, req *dto.ClientListRequest)
 	args := []interface{}{}
 	argIdx := 1
 
+	if req.Status != nil && *req.Status != "" {
+		if req.PropertyType != nil && *req.PropertyType == "commercial" {
+			// Filtramos por la columna de la tabla unida y casteamos al nuevo ENUM comercial
+			where = append(where, fmt.Sprintf("cd.workflow_status = $%d::commercial_status_enum", argIdx))
+		} else {
+			// Si es residencial o general, filtramos por el ENUM de colores tradicional
+			where = append(where, fmt.Sprintf("c.status = $%d::client_status_enum", argIdx))
+		}
+		args = append(args, *req.Status)
+		argIdx++
+	}
+
 	if req.Status != nil {
 		where = append(where, fmt.Sprintf("c.status = $%d", argIdx))
 		args = append(args, *req.Status)

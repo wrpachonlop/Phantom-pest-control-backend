@@ -86,17 +86,17 @@ func (r *ClientRepository) List(ctx context.Context, req *dto.ClientListRequest)
 	args := []interface{}{}
 	argIdx := 1
 
-	if req.Status != nil && *req.Status != "" {
-		if req.PropertyType != nil && *req.PropertyType == "commercial" {
-			// Filtramos por la columna de la tabla unida y casteamos al nuevo ENUM comercial
-			where = append(where, fmt.Sprintf("cd.workflow_status = $%d::commercial_status_enum", argIdx))
-		} else {
-			// Si es residencial o general, filtramos por el ENUM de colores tradicional
-			where = append(where, fmt.Sprintf("c.status = $%d::client_status_enum", argIdx))
-		}
-		args = append(args, *req.Status)
-		argIdx++
-	}
+	// if req.Status != nil && *req.Status != "" {
+	// 	if req.PropertyType != nil && *req.PropertyType == "commercial" {
+	// 		// Filtramos por la columna de la tabla unida y casteamos al nuevo ENUM comercial
+	// 		where = append(where, fmt.Sprintf("cd.workflow_status = $%d::commercial_status_enum", argIdx))
+	// 	} else {
+	// 		// Si es residencial o general, filtramos por el ENUM de colores tradicional
+	// 		where = append(where, fmt.Sprintf("c.status = $%d::client_status_enum", argIdx))
+	// 	}
+	// 	args = append(args, *req.Status)
+	// 	argIdx++
+	// }
 
 	if req.Status != nil {
 		where = append(where, fmt.Sprintf("c.status = $%d", argIdx))
@@ -147,10 +147,15 @@ func (r *ClientRepository) List(ctx context.Context, req *dto.ClientListRequest)
 
 	whereClause := strings.Join(where, " AND ")
 
+	fromClause := "clients c"
+	if req.PropertyType != nil && *req.PropertyType == "commercial" {
+		fromClause = "clients c LEFT JOIN commercial_client_details cd ON c.id = cd.client_id"
+	}
+
 	// Count total
 	var total int64
 	err := r.db.QueryRow(ctx,
-		fmt.Sprintf("SELECT COUNT(*) FROM clients c WHERE %s", whereClause),
+		fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s", fromClause, whereClause),
 		args...,
 	).Scan(&total)
 	if err != nil {
@@ -160,11 +165,15 @@ func (r *ClientRepository) List(ctx context.Context, req *dto.ClientListRequest)
 	// Sort
 	sortBy := "c.created_at"
 	if req.SortBy != "" {
+		statusCol := "c.status"
+		if req.PropertyType != nil && *req.PropertyType == "commercial" {
+			statusCol = "cd.workflow_status"
+		}
 		allowed := map[string]string{
 			"created_at":          "c.created_at",
 			"client_contact_date": "c.client_contact_date",
 			"first_contact_date":  "c.first_contact_date",
-			"status":              "c.status",
+			"status":              statusCol,
 			"client_name":         "c.client_name",
 		}
 		if col, ok := allowed[req.SortBy]; ok {

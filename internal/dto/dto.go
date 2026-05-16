@@ -58,7 +58,7 @@ type UpdateClientRequest struct {
 type ClientListRequest struct {
 	Page         int                  `form:"page" validate:"min=1"`
 	PageSize     int                  `form:"page_size" validate:"min=1,max=100"`
-	Status       *models.ClientStatus `form:"status"`
+	Status       *string              `form:"status"`
 	PropertyType *models.PropertyType `form:"property_type"`
 	AfterHours   *bool                `form:"after_hours"`
 	Search       string               `form:"search"`    // fuzzy search on name/location

@@ -200,9 +200,12 @@ func (r *ClientRepository) List(ctx context.Context, req *dto.ClientListRequest)
 			c.after_hours, c.contact_method_id, c.problem_description,
 			c.location_type, c.location_value, c.sold_by, c.sale_range,
 			c.created_by, c.created_at, c.updated_at,
-			cd.inspector_id, cd.workflow_status
+			cd.inspector_id, cd.workflow_status,
+			COALESCE(u.full_name, cm.full_name) AS inspector_name
 		FROM clients c
 		LEFT JOIN commercial_client_details cd ON c.id = cd.client_id
+		LEFT JOIN users u ON cd.inspector_id = u.id
+		LEFT JOIN crew_members cm ON cd.inspector_id = cm.id
 		WHERE %s
 		ORDER BY %s %s
 		LIMIT $%d OFFSET $%d
@@ -224,6 +227,7 @@ func (r *ClientRepository) List(ctx context.Context, req *dto.ClientListRequest)
 			&c.LocationType, &c.LocationValue, &c.SoldBy, &c.SaleRange,
 			&c.CreatedBy, &c.CreatedAt, &c.UpdatedAt,
 			&c.InspectorID, &c.WorkflowStatus,
+			&c.InspectorName,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan client: %w", err)
 		}

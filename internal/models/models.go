@@ -131,6 +131,7 @@ type Client struct {
 	CrewMemberID       *uuid.UUID   `db:"crew_member_id" json:"crew_member_id"`
 	InspectorID        *uuid.UUID   `db:"inspector_id" json:"inspector_id"`
 	WorkflowStatus     *string      `db:"workflow_status" json:"workflow_status"`
+	InspectorName      *string      `json:"inspector_name"`
 }
 
 // ClientFull is the enriched client view with related entities.

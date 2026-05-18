@@ -87,15 +87,18 @@ func (r *ClientRepository) List(ctx context.Context, req *dto.ClientListRequest)
 	argIdx := 1
 
 	if req.Status != nil && *req.Status != "" {
+		statusVal := *req.Status
+
 		if req.PropertyType != nil && *req.PropertyType == "commercial" {
-			// Para comerciales: usamos cd.workflow_status y su ENUM correspondiente
-			where = append(where, fmt.Sprintf("cd.workflow_status = $%d::commercial_status_enum", argIdx))
+			// Pasamos el string literal directamente interpolado. Al ser un ENUM controlado por nuestra botonera del front, es seguro.
+			// Esto evita que el driver intente inferir que pertenece a c.status (client_status_enum)
+			where = append(where, fmt.Sprintf("cd.workflow_status = '%s'::commercial_status_enum", statusVal))
 		} else {
-			// Para residenciales: usamos c.status y su ENUM de colores tradicional
+			// Para residenciales, seguimos usando marcadores de posición tradicionales seguros
 			where = append(where, fmt.Sprintf("c.status = $%d::client_status_enum", argIdx))
+			args = append(args, statusVal)
+			argIdx++
 		}
-		args = append(args, *req.Status)
-		argIdx++
 	}
 
 	if req.Status != nil {

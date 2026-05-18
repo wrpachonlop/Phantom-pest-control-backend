@@ -149,20 +149,6 @@ func (r *ClientRepository) List(ctx context.Context, req *dto.ClientListRequest)
 	if req.PropertyType != nil && *req.PropertyType == "commercial" {
 		fromClause = "clients c LEFT JOIN commercial_client_details cd ON c.id = cd.client_id"
 	}
-	// ─── LOGS DE DEBUEO PARA EL COUNT ──────────────────────────────────────
-	fmt.Println("\n=== [DEBUG] PHANTOM CRM - INICIO LISTADO CLIENTES ===")
-	if req.PropertyType != nil {
-		fmt.Printf("[DEBUG] PropertyType solicitado: %s\n", *req.PropertyType)
-	}
-	if req.Status != nil {
-		fmt.Printf("[DEBUG] Status (string plano) recibido en Go: %s\n", *req.Status)
-	}
-
-	queryCountFinal := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s", fromClause, whereClause)
-	fmt.Printf("[DEBUG] SQL COUNT EJECUTÁNDOSE:\n%s\n", queryCountFinal)
-	fmt.Printf("[DEBUG] Argumentos enviados ($1, $2...): %+v\n", args)
-	fmt.Println("====================================================\n")
-	// ──────────────
 
 	// Count total
 	var total int64

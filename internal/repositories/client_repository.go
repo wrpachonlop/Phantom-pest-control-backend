@@ -101,11 +101,6 @@ func (r *ClientRepository) List(ctx context.Context, req *dto.ClientListRequest)
 		}
 	}
 
-	if req.Status != nil {
-		where = append(where, fmt.Sprintf("c.status = $%d", argIdx))
-		args = append(args, *req.Status)
-		argIdx++
-	}
 	if req.PropertyType != nil {
 		where = append(where, fmt.Sprintf("c.property_type = $%d", argIdx))
 		args = append(args, *req.PropertyType)

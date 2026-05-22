@@ -313,15 +313,29 @@ func (s *CommercialService) validateApprovedTransition(
 	}
 
 	// Check required business details are populated (either previously or now)
-	if details.CompanyName == nil && req.ApprovedByName == nil {
-		errs = append(errs, "company_name (must be set before approval)")
+
+	hasCompanyName := (details.CompanyName != nil && *details.CompanyName != "") || (req.CompanyName != nil && *req.CompanyName != "")
+	if !hasCompanyName {
+		errs = append(errs, "company_name")
 	}
-	if details.ServiceAddress == nil {
-		errs = append(errs, "service_address (must be set before approval)")
+
+	hasContactPerson := (details.ContactPersonName != nil && *details.ContactPersonName != "") || (req.ContactPersonName != nil && *req.ContactPersonName != "")
+	if !hasContactPerson {
+		errs = append(errs, "contact_person_name")
+	}
+
+	hasServiceAddress := (details.ServiceAddress != nil && *details.ServiceAddress != "") || (req.ServiceAddress != nil && *req.ServiceAddress != "")
+	if !hasServiceAddress {
+		errs = append(errs, "service_address")
+	}
+
+	hasBillingAddress := (details.BillingAddress != nil && *details.BillingAddress != "") || (req.BillingAddress != nil && *req.BillingAddress != "")
+	if !hasBillingAddress {
+		errs = append(errs, "billing_address")
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("approval requires the following fields: %v", errs)
+		return fmt.Errorf("approval requires the following fields completed: %v", errs)
 	}
 
 	// Parse approved date
@@ -339,6 +353,20 @@ func (s *CommercialService) validateApprovedTransition(
 			return fmt.Errorf("frequency_interval must be greater than 0")
 		}
 	}
+
+	if req.CompanyName != nil {
+		updates["company_name"] = *req.CompanyName
+	}
+	if req.ContactPersonName != nil {
+		updates["contact_person_name"] = *req.ContactPersonName
+	}
+	if req.ServiceAddress != nil {
+		updates["service_address"] = *req.ServiceAddress
+	}
+	if req.BillingAddress != nil {
+		updates["billing_address"] = *req.BillingAddress
+	}
+	updates["billing_same_as_service"] = req.BillingSameAsService
 
 	updates["approved_by_name"] = *req.ApprovedByName
 	updates["approved_date"] = d

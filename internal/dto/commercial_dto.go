@@ -60,6 +60,13 @@ type CommercialStatusTransitionRequest struct {
 	// Required for pending
 	NextFollowupDate *string `json:"next_followup_date"` // YYYY-MM-DD
 
+	// ── NUEVOS: Campos de Identidad Comercial enviados en el Hito Approved
+	CompanyName          *string `json:"company_name"`
+	ContactPersonName    *string `json:"contact_person_name"`
+	ServiceAddress       *string `json:"service_address"`
+	BillingAddress       *string `json:"billing_address"`
+	BillingSameAsService bool    `json:"billing_same_as_service"`
+
 	// Required for approved
 	ApprovedByName       *string                  `json:"approved_by_name"`
 	ApprovedDate         *string                  `json:"approved_date"` // YYYY-MM-DD

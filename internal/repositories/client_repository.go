@@ -118,6 +118,7 @@ func (r *ClientRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.C
 		&client.Details.ServiceAddress,
 		&client.Details.BillingAddress,
 		&client.Details.LeadSource,
+		&client.Details.CrewMemberID,
 		&client.Details.WorkflowStatus,
 		&client.Details.InspectorID,
 		&client.Details.BillingTerms,

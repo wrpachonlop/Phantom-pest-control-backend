@@ -46,7 +46,7 @@ func (r *ClientRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.C
 			ccd.lead_source, ccd.crew_member_id,
 			ccd.workflow_status, ccd.inspector_id,
 			ccd.billing_terms,ccd.initial_setup_cost, ccd.recurring_service_cost,
-			ccd.service_frequency, ccd.frequency_intervals,ccd.proposal_drive_link,
+			ccd.service_frequency, ccd.frequency_interval,ccd.proposal_drive_link,
 			ccd.approved_by_name, ccd.approved_date,ccd.next_followup_date, 
 			ccd.installation_date, ccd.cancelled_date, ccd.cancel_reason,
 			COALESCE(u.full_name, cw.full_name, '') AS inspector_name

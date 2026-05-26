@@ -30,6 +30,11 @@ func (r *ClientRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.C
 
 	var commercialID *uuid.UUID
 
+	var txtLeadSource *string
+	var txtWorkflowStatus *string
+	var txtBillingTerms *string
+	var txtServiceFrequency *string
+
 	client.Details = &models.CommercialClientDetails{}
 
 	err := r.db.QueryRow(ctx, `
@@ -117,14 +122,14 @@ func (r *ClientRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.C
 		&client.Details.ContactPersonName,
 		&client.Details.ServiceAddress,
 		&client.Details.BillingAddress,
-		&client.Details.LeadSource,
+		&txtLeadSource,
 		&client.Details.CrewMemberID,
-		&client.Details.WorkflowStatus,
+		&txtWorkflowStatus,
 		&client.Details.InspectorID,
-		&client.Details.BillingTerms,
+		&txtBillingTerms,
 		&client.Details.InitialSetupCost,
 		&client.Details.RecurringServiceCost,
-		&client.Details.ServiceFrequency,
+		&txtServiceFrequency,
 		&client.Details.FrequencyInterval,
 		&client.Details.ProposalDriveLink,
 		&client.Details.ApprovedByName,
@@ -146,8 +151,27 @@ func (r *ClientRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.C
 		// Si el ID vino nulo, limpiamos el objeto fantasma para que no mande basura al Front
 		client.Details = nil
 	} else {
-		// Si vino data, le asignamos su ID real que rescatamos en el control
 		client.Details.ID = *commercialID
+
+		// CORRECCIÓN: Mapeamos de forma segura los strings temporales convirtiéndolos a tus tipos custom (Enums)
+		if txtLeadSource != nil {
+			client.Details.LeadSource = models.LeadSource(*txtLeadSource)
+		}
+		if txtWorkflowStatus != nil {
+			client.Details.WorkflowStatus = models.CommercialStatus(*txtWorkflowStatus)
+		}
+		if txtBillingTerms != nil {
+			client.Details.BillingTerms = (*models.BillingTerms)(txtBillingTerms)
+		}
+		if txtServiceFrequency != nil {
+			client.Details.ServiceFrequency = (*models.ServiceFrequency)(txtServiceFrequency)
+		}
+
+		// Sincronizamos el objeto del inspector anidado
+		client.Details.Inspector = &models.User{
+			ID:       client.Details.InspectorID,
+			FullName: client.InspectorName,
+		}
 	}
 
 	// Load phones

@@ -137,12 +137,13 @@ type Client struct {
 // ClientFull is the enriched client view with related entities.
 type ClientFull struct {
 	Client
-	ContactMethod *ContactMethod `json:"contact_method"`
-	PestIssues    []PestIssue    `json:"pest_issues"`
-	Phones        []Phone        `json:"phones"`
-	Emails        []Email        `json:"emails"`
-	SoldByUser    *User          `json:"sold_by_user,omitempty"`
-	CreatedByUser *User          `json:"created_by_user,omitempty"`
+	ContactMethod *ContactMethod           `json:"contact_method"`
+	PestIssues    []PestIssue              `json:"pest_issues"`
+	Phones        []Phone                  `json:"phones"`
+	Emails        []Email                  `json:"emails"`
+	SoldByUser    *User                    `json:"sold_by_user,omitempty"`
+	CreatedByUser *User                    `json:"created_by_user,omitempty"`
+	Details       *CommercialClientDetails `json:"details"`
 }
 
 // =============================================================

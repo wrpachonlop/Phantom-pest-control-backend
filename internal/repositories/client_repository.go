@@ -28,9 +28,9 @@ func (r *ClientRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.C
 
 	client.ContactMethod = &models.ContactMethod{}
 
-	var workflowStatus *string
-	var inspectorID *uuid.UUID
-	var inspectorName *string
+	var commercialID *uuid.UUID
+
+	client.Details = &models.CommercialClientDetails{}
 
 	err := r.db.QueryRow(ctx, `
 		SELECT
@@ -41,7 +41,14 @@ func (r *ClientRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.C
 			c.created_by, c.created_at, c.updated_at,
 			cm.id, cm.name, cm.is_active, cm.created_at,
 
+			ccd.id, ccd.client_id, ccd.company_name, ccd.contact_person_name, 
+            ccd.service_address, ccd.billing_address,
+			ccd.lead_source, ccd.crew_member_id,
 			ccd.workflow_status, ccd.inspector_id,
+			ccd.billing_terms,ccd.initial_setup_cost, ccd.recurring_service_cost,
+			ccd.service_frequency, ccd.frequency_intervals,ccd.proposal_drive_link,
+			ccd.approved_by_name, ccd.approved_date,ccd.next_followup_date, 
+			ccd.installation_date, ccd.cancelled_date, ccd.cancel_reason,
 			COALESCE(u.full_name, cw.full_name, '') AS inspector_name
 		FROM clients c
 		JOIN contact_methods cm ON cm.id = c.contact_method_id
@@ -59,7 +66,14 @@ func (r *ClientRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.C
 		&client.ContactMethod.ID, &client.ContactMethod.Name,
 		&client.ContactMethod.IsActive, &client.ContactMethod.CreatedAt,
 		// commercial details
-		&workflowStatus, &inspectorID, &inspectorName,
+		&commercialID,
+		&client.Details.ClientID, &client.Details.CompanyName, &client.Details.ContactPersonName,
+		&client.Details.ServiceAddress, &client.Details.BillingAddress,
+		&client.Details.LeadSource, &client.Details.CrewMemberID,
+		&client.Details.BillingTerms, &client.Details.InitialSetupCost, &client.Details.RecurringServiceCost,
+		&client.Details.ServiceFrequency, &client.Details.FrequencyInterval, &client.Details.ProposalDriveLink,
+		&client.Details.ApprovedByName, &client.Details.ApprovedDate, &client.Details.NextFollowupDate,
+		&client.Details.InstallationDate, &client.Details.CancelledDate, &client.Details.CancelReason,
 	)
 	if err == pgx.ErrNoRows {
 		return nil, ErrNotFound
@@ -68,14 +82,12 @@ func (r *ClientRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.C
 		return nil, fmt.Errorf("get client by id: %w", err)
 	}
 
-	if workflowStatus != nil {
-		client.WorkflowStatus = workflowStatus
-	}
-	if inspectorID != nil {
-		client.InspectorID = inspectorID
-	}
-	if inspectorName != nil {
-		client.InspectorName = inspectorName
+	if commercialID == nil {
+		// Si el ID vino nulo, limpiamos el objeto fantasma para que no mande basura al Front
+		client.Details = nil
+	} else {
+		// Si vino data, le asignamos su ID real que rescatamos en el control
+		client.Details.ID = *commercialID
 	}
 
 	// Load phones

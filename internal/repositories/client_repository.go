@@ -42,7 +42,7 @@ func (r *ClientRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.C
 			cm.id, cm.name, cm.is_active, cm.created_at,
 
 			ccd.workflow_status, ccd.inspector_id,
-			COALESCE(u.full_name, cw.name, '') AS inspector_name
+			COALESCE(u.full_name, cw.full_name, '') AS inspector_name
 		FROM clients c
 		JOIN contact_methods cm ON cm.id = c.contact_method_id
 		LEFT JOIN commercial_client_details ccd ON ccd.client_id = c.id

@@ -133,6 +133,7 @@ func (r *ClientRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.C
 		&client.Details.InstallationDate,
 		&client.Details.CancelledDate,
 		&client.Details.CancelReason,
+		&client.InspectorName,
 	)
 	if err == pgx.ErrNoRows {
 		return nil, ErrNotFound

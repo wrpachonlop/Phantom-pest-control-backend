@@ -28,6 +28,10 @@ func (r *ClientRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.C
 
 	client.ContactMethod = &models.ContactMethod{}
 
+	var workflowStatus *string
+	var inspectorID *uuid.UUID
+	var inspectorName *string
+
 	err := r.db.QueryRow(ctx, `
 		SELECT
 			c.id, c.client_name, c.client_type, c.property_type, c.status,
@@ -35,9 +39,14 @@ func (r *ClientRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.C
 			c.after_hours, c.contact_method_id, c.problem_description,
 			c.location_type, c.location_value, c.sold_by, c.sale_range,
 			c.created_by, c.created_at, c.updated_at,
-			cm.id, cm.name, cm.is_active, cm.created_at
+			cm.id, cm.name, cm.is_active, cm.created_at,
+
+			ccd.workflow_status, ccd.inspector_id,
+			COALESCE(u.full_name, cm.full_name) AS inspector_name
 		FROM clients c
 		JOIN contact_methods cm ON cm.id = c.contact_method_id
+		LEFT JOIN commercial_client_details ccd ON ccd.client_id = c.id
+		LEFT JOIN users u ON ccd.inspector_id = u.id
 		WHERE c.id = $1
 	`, id).Scan(
 		&client.ID, &client.ClientName, &client.ClientType, &client.PropertyType, &client.Status,
@@ -48,12 +57,24 @@ func (r *ClientRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.C
 		// contact method
 		&client.ContactMethod.ID, &client.ContactMethod.Name,
 		&client.ContactMethod.IsActive, &client.ContactMethod.CreatedAt,
+		// commercial details
+		&workflowStatus, &inspectorID, &inspectorName,
 	)
 	if err == pgx.ErrNoRows {
 		return nil, ErrNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get client by id: %w", err)
+	}
+
+	if workflowStatus != nil {
+		client.WorkflowStatus = workflowStatus
+	}
+	if inspectorID != nil {
+		client.InspectorID = inspectorID
+	}
+	if inspectorName != nil {
+		client.InspectorName = inspectorName
 	}
 
 	// Load phones

@@ -80,16 +80,7 @@ func (e *EmailNotifier) SendCommercialApproved(
 	if details.ApprovedDate != nil {
 		approvedDateStr = details.ApprovedDate.Format("January 02, 2006")
 	}
-	if details.Inspector != nil {
-		fmt.Printf("[DEBUG NOTIFIER] Inspector Object exists: %+v\n", details.Inspector)
-		if details.Inspector.FullName != nil {
-			fmt.Printf("[DEBUG NOTIFIER] Inspector FullName string: %s\n", *details.Inspector.FullName)
-		} else {
-			fmt.Printf("[DEBUG NOTIFIER] Inspector FullName is NULL (nil pointer)\n")
-		}
-	} else {
-		fmt.Printf("[DEBUG NOTIFIER] Inspector Object is completely NIL (Not loaded by Repository)\n")
-	}
+	fmt.Printf("Approved date string: %s\n", details)
 	inspectorNameStr := "—"
 	if details.Inspector != nil && details.Inspector.FullName != nil {
 		inspectorNameStr = *details.Inspector.FullName

@@ -38,6 +38,7 @@ func (e *EmailNotifier) SendCommercialApproved(
 	details *models.CommercialClientDetails,
 	recipients []models.NotificationRecipient,
 ) error {
+	fmt.Printf("Preparing to send commercial approved notification for client %s to %d recipients\n", details.ClientID, len(recipients))
 	if len(recipients) == 0 {
 		e.logger.Warn("no recipients configured for commercial_approved event")
 		return nil
@@ -74,6 +75,7 @@ This is an automated notification from Phantom Pest Control CRM.
 	)
 
 	for _, r := range recipients {
+		fmt.Printf("Sending commercial approved notification to %s\n", r.Email)
 		if err := e.sendWithResend([]string{r.Email}, subject, body); err != nil {
 			e.logger.Error("failed to send approval email",
 				zap.String("recipient", r.Email),

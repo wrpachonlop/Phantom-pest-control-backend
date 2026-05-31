@@ -242,7 +242,9 @@ func (s *CommercialService) TransitionStatus(
 		bgCtx := context.Background()
 		switch to {
 		case models.CommercialStatusApproved:
+			fmt.Printf("Client %s approved, sending notifications...\n", clientID)
 			recipients, err := s.commercialRepo.GetRecipientsByEvent(bgCtx, "commercial_approved")
+			fmt.Printf("Recipients for commercial_approved: %v\n", recipients)
 			if err != nil {
 				s.logger.Error("failed to get approval recipients", zap.Error(err))
 				return

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Commercial Installation Required</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f6; color: #1f2937;">
+    <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        <tr>
+            <td style="background-color: #111827; padding: 30px; text-align: center; border-bottom: 4px solid #d97706;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 600; letter-spacing: 0.05em;">{{ .PortalName }}</h1>
+                <p style="color: #9ca3af; margin: 5px 0 0 0; font-size: 13px; text-transform: uppercase;">New Approved Contract Alert</p>
+            </td>
+        </tr>
+        
+        <tr>
+            <td style="padding: 40px 30px;">
+                <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.5; color: #374151;">
+                    Hello Operations Team,<br><br>
+                    A new commercial client has been marked as <strong>APPROVED</strong>. Action is required to open the schedule and coordinate the technical installation.
+                </p>
+
+                <h2 style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: #d97706; margin: 30px 0 10px 0; letter-spacing: 0.05em;">Business Identity</h2>
+                <table width="100%" style="border-collapse: collapse; margin-bottom: 20px;">
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 8px 0; font-size: 14px; color: #6b7280;" width="35%">Company Name</td>
+                        <td style="padding: 8px 0; font-size: 14px; font-weight: 600; color: #111827;">{{ .CompanyName }}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 8px 0; font-size: 14px; color: #6b7280;">Contact Person</td>
+                        <td style="padding: 8px 0; font-size: 14px; font-weight: 600; color: #111827;">{{ .ContactPersonName }}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 8px 0; font-size: 14px; color: #6b7280;">Service Address</td>
+                        <td style="padding: 8px 0; font-size: 14px; color: #111827;">{{ .ServiceAddress }}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 8px 0; font-size: 14px; color: #6b7280;">Billing Address</td>
+                        <td style="padding: 8px 0; font-size: 14px; color: #111827;">{{ .BillingAddress }}</td>
+                    </tr>
+                </table>
+
+                <h2 style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: #d97706; margin: 25px 0 10px 0; letter-spacing: 0.05em;">Financial & Schedule Terms</h2>
+                <table width="100%" style="border-collapse: collapse; margin-bottom: 20px;">
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 8px 0; font-size: 14px; color: #6b7280;" width="35%">Billing Terms</td>
+                        <td style="padding: 8px 0; font-size: 14px; font-weight: 600; color: #111827;">{{ .BillingTerms }}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 8px 0; font-size: 14px; color: #6b7280;">Initial Setup Cost</td>
+                        <td style="padding: 8px 0; font-size: 14px; font-weight: 600; color: #059669;">{{ .InitialSetupCost }}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 8px 0; font-size: 14px; color: #6b7280;">Recurring Cost</td>
+                        <td style="padding: 8px 0; font-size: 14px; font-weight: 600; color: #059669;">{{ .RecurringServiceCost }}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 8px 0; font-size: 14px; color: #6b7280;">Service Frequency</td>
+                        <td style="padding: 8px 0; font-size: 14px; color: #111827;">{{ .ServiceFrequency }}</td>
+                    </tr>
+                </table>
+
+                <h2 style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: #d97706; margin: 25px 0 10px 0; letter-spacing: 0.05em;">Approval Metadata</h2>
+                <table width="100%" style="border-collapse: collapse; margin-bottom: 30px;">
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 8px 0; font-size: 14px; color: #6b7280;" width="35%">Approved By</td>
+                        <td style="padding: 8px 0; font-size: 14px; font-weight: 600; color: #111827;">{{ .ApprovedByName }}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 8px 0; font-size: 14px; color: #6b7280;">Approval Date</td>
+                        <td style="padding: 8px 0; font-size: 14px; color: #111827;">{{ .ApprovedDate }}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 8px 0; font-size: 14px; color: #6b7280;">Assigned Inspector</td>
+                        <td style="padding: 8px 0; font-size: 14px; color: #111827;">{{ .InspectorName }}</td>
+                    </tr>
+                </table>
+
+                {{ if .TransitionNotes }}
+                <div style="background-color: #f9fafb; border-left: 4px solid #9ca3af; padding: 15px; margin-bottom: 30px; border-radius: 0 8px 8px 0;">
+                    <span style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #6b7280; display: block; margin-bottom: 5px;">Transition Notes</span>
+                    <p style="margin: 0; font-size: 13.5px; line-height: 1.4; color: #4b5563; font-style: italic;">"{{ .TransitionNotes }}"</p>
+                </div>
+                {{ end }}
+
+                <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td align="center">
+                            <a href="{{ .ProposalDriveLink }}" target="_blank" style="background-color: #d97706; color: #ffffff; padding: 12px 24px; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 6px; display: inline-block; box-shadow: 0 2px 4px rgba(217, 119, 6, 0.2);">
+                                View Authorized Proposal (Google Drive)
+                            </a>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+
+        <tr>
+            <td style="background-color: #f3f4f6; padding: 20px 30px; text-align: center; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+                This is an automated notification generated by Phantom Portal.<br>
+                &copy; 2026 Phantom Pest Control. All rights reserved.
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

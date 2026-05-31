@@ -3,33 +3,32 @@ package services
 import (
 	"context"
 	"fmt"
-	"net/smtp"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/phantompestcontrol/crm/internal/models"
 	"github.com/phantompestcontrol/crm/internal/repositories"
+	"github.com/resend/resend-go/v2"
 	"go.uber.org/zap"
 )
 
 // EmailNotifier implements NotificationSender using SMTP.
 // In production, swap for a SendGrid/Mailgun client.
 type EmailNotifier struct {
-	smtpHost string
-	smtpPort string
-	smtpUser string
-	smtpPass string
-	fromAddr string
-	logger   *zap.Logger
+	resendClient *resend.Client // ◄ Reemplaza smtpHost, smtpPort, smtpUser, etc.
+	fromAddr     string
+	logger       *zap.Logger
 }
 
 func NewEmailNotifier(logger *zap.Logger) *EmailNotifier {
+	apiKey := os.Getenv("RESEND_API_KEY")
+	client := resend.NewClient(apiKey)
+
 	return &EmailNotifier{
-		smtpHost: getEnvOrDefault("SMTP_HOST", "smtp.gmail.com"),
-		smtpPort: getEnvOrDefault("SMTP_PORT", "587"),
-		smtpUser: os.Getenv("SMTP_USER"),
-		smtpPass: os.Getenv("SMTP_PASS"),
-		fromAddr: getEnvOrDefault("SMTP_FROM", "crm@phantompestcontrol.ca"),
+		resendClient: client,
+		// Por ahora en tu .env EMAIL_FROM será onboarding@resend.dev
+		fromAddr: getEnvOrDefault("EMAIL_FROM", "onboarding@resend.dev"),
 		logger:   logger,
 	}
 }
@@ -76,7 +75,7 @@ This is an automated notification from Phantom Pest Control CRM.
 	)
 
 	for _, r := range recipients {
-		if err := e.send(r.Email, subject, body); err != nil {
+		if err := e.sendWithResend([]string{r.Email}, subject, body); err != nil {
 			e.logger.Error("failed to send approval email",
 				zap.String("recipient", r.Email),
 				zap.Error(err),
@@ -121,29 +120,34 @@ Phantom Pest Control CRM
 		row.ClientID.String(),
 	)
 
-	return e.send(row.InspectorEmail, subject, body)
+	return e.sendWithResend([]string{row.InspectorEmail}, subject, body)
 }
 
-func (e *EmailNotifier) send(to, subject, body string) error {
-	if e.smtpUser == "" || e.smtpPass == "" {
-		// Dev mode: log instead of send
-		fmt.Printf("[EMAIL NOTIFIER] To: %s\nSubject: %s\n%s\n", to, subject, body)
+func (e *EmailNotifier) sendWithResend(to []string, subject, htmlBody string) error {
+	// Si no configuras la API Key en desarrollo, lo saca por consola para que no falle el backend
+	if os.Getenv("RESEND_API_KEY") == "" {
+		fmt.Printf("[RESEND MOCK] To: %v\nSubject: %s\nHTML:\n%s\n", to, subject, htmlBody)
 		return nil
 	}
 
-	auth := smtp.PlainAuth("", e.smtpUser, e.smtpPass, e.smtpHost)
-	msg := fmt.Sprintf(
-		"From: %s\r\nTo: %s\r\nSubject: %s\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n%s",
-		e.fromAddr, to, subject, body,
-	)
+	params := &resend.SendEmailRequest{
+		From:    e.fromAddr,
+		To:      to,
+		Subject: subject,
+		Html:    htmlBody,
+	}
 
-	return smtp.SendMail(
-		e.smtpHost+":"+e.smtpPort,
-		auth,
-		e.fromAddr,
-		[]string{to},
-		[]byte(msg),
-	)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err := e.resendClient.Emails.SendWithContext(ctx, params)
+	if err != nil {
+		e.logger.Error("failed to deliver email via Resend API", zap.Strings("recipients", to), zap.Error(err))
+		return err
+	}
+
+	e.logger.Info("Email payload processed by Phantom Portal successfully", zap.Strings("recipients", to))
+	return nil
 }
 
 // ─── Log-only notifier for testing / staging ─────────────────────────────────

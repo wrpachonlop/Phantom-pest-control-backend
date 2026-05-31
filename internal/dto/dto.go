@@ -231,3 +231,21 @@ type SuccessResponse struct {
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
 }
+
+// CommercialApprovedEmailData agrupa toda la metadata necesaria para la plantilla HTML.
+type CommercialApprovedEmailData struct {
+	PortalName           string
+	CompanyName          string
+	ContactPersonName    string
+	ServiceAddress       string
+	BillingAddress       string
+	BillingTerms         string
+	InitialSetupCost     string // Formateado ya como string con "$X.XX CAD"
+	RecurringServiceCost string // Formateado ya como string con "$X.XX CAD"
+	ServiceFrequency     string
+	ProposalDriveLink    string
+	ApprovedByName       string
+	ApprovedDate         string
+	InspectorName        string
+	TransitionNotes      string
+}

@@ -1,10 +1,13 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"strings"
+	"text/template"
+	"time"
 
 	"github.com/phantompestcontrol/crm/internal/models"
 	"github.com/phantompestcontrol/crm/internal/repositories"
@@ -38,53 +41,98 @@ func (e *EmailNotifier) SendCommercialApproved(
 	details *models.CommercialClientDetails,
 	recipients []models.NotificationRecipient,
 ) error {
-	fmt.Printf("Preparing to send commercial approved notification for client %s to %d recipients\n", details.ClientID, len(recipients))
-	if len(recipients) == 0 {
-		e.logger.Warn("no recipients configured for commercial_approved event")
+	// 1. Resolver Destinatarios (BD con fallback al .env)
+	var toEmails []string
+	if len(recipients) > 0 {
+		for _, r := range recipients {
+			toEmails = append(toEmails, r.Email)
+		}
+	} else {
+		internalRecipientsRaw := os.Getenv("EMAIL_INTERNAL_RECIPIENTS")
+		if internalRecipientsRaw != "" {
+			toEmails = strings.Split(internalRecipientsRaw, ",")
+		}
+	}
+
+	if len(toEmails) == 0 {
+		e.logger.Warn("no recipients found to deliver approval notification")
 		return nil
 	}
 
+	// 2. Limpieza y formateo estricto de variables para el HTML (Estilo CAD)
 	companyName := "Unknown"
 	if details.CompanyName != nil {
 		companyName = *details.CompanyName
 	}
 
-	subject := fmt.Sprintf("[Phantom CRM] Commercial Client Approved: %s", companyName)
-
-	body := fmt.Sprintf(`
-A commercial client has been approved in Phantom Pest Control CRM.
-
-Company: %s
-Approved By: %s
-Approved Date: %s
-Initial Setup Cost: $%.2f
-Recurring Service Cost: $%.2f
-Service Frequency: %s
-
-View in CRM: https://crm.phantompestcontrol.ca/dashboard/clients/%s
-
-This is an automated notification from Phantom Pest Control CRM.
-`,
-		companyName,
-		safeStr(details.ApprovedByName),
-		safeDate(details.ApprovedDate),
-		safeFloat(details.InitialSetupCost),
-		safeFloat(details.RecurringServiceCost),
-		safeFrequency(details.ServiceFrequency, details.FrequencyInterval),
-		details.ClientID.String(),
-	)
-
-	for _, r := range recipients {
-		fmt.Printf("Sending commercial approved notification to %s\n", r.Email)
-		if err := e.sendWithResend([]string{r.Email}, subject, body); err != nil {
-			e.logger.Error("failed to send approval email",
-				zap.String("recipient", r.Email),
-				zap.Error(err),
-			)
-			// Continue sending to other recipients even if one fails
-		}
+	setupCost := "$0.00 CAD"
+	if details.InitialSetupCost != nil {
+		setupCost = fmt.Sprintf("$%.2f CAD", *details.InitialSetupCost)
 	}
-	return nil
+
+	recurringCost := "$0.00 CAD"
+	if details.RecurringServiceCost != nil {
+		recurringCost = fmt.Sprintf("$%.2f CAD", *details.RecurringServiceCost)
+	}
+
+	// Limpiar formato de fecha UTC horrible de Go
+	approvedDateStr := time.Now().Format("January 02, 2006")
+	if details.ApprovedDate != nil {
+		approvedDateStr = details.ApprovedDate.Format("January 02, 2006")
+	}
+
+	inspectorNameStr := "—"
+	if details.Inspector != nil && details.Inspector.FullName != nil {
+		inspectorNameStr = *details.Inspector.FullName
+	}
+
+	// Estructura de mapeo idéntica a los tokens {{ . }} del archivo HTML
+	emailData := struct {
+		PortalName           string
+		CompanyName          string
+		ContactPersonName    string
+		ServiceAddress       string
+		BillingAddress       string
+		BillingTerms         string
+		InitialSetupCost     string
+		RecurringServiceCost string
+		ServiceFrequency     string
+		ProposalDriveLink    string
+		ApprovedByName       string
+		ApprovedDate         string
+		InspectorName        string
+		TransitionNotes      string
+	}{
+		PortalName:           "Phantom Portal",
+		CompanyName:          companyName,
+		ContactPersonName:    safeStr(details.ContactPersonName),
+		ServiceAddress:       safeStr(details.ServiceAddress),
+		BillingAddress:       safeStr(details.BillingAddress),
+		BillingTerms:         strings.ToUpper(strings.ReplaceAll(safeStr((*string)(details.BillingTerms)), "_", " ")),
+		InitialSetupCost:     setupCost,
+		RecurringServiceCost: recurringCost,
+		ServiceFrequency:     strings.ToUpper(safeFrequency(details.ServiceFrequency, details.FrequencyInterval)),
+		ProposalDriveLink:    safeStr(details.ProposalDriveLink),
+		ApprovedByName:       safeStr(details.ApprovedByName),
+		ApprovedDate:         approvedDateStr,
+		InspectorName:        inspectorNameStr,
+		TransitionNotes:      safeStr(details.Notes),
+	}
+
+	// 3. Cargar y renderizar la plantilla HTML
+	tmpl, err := template.ParseFiles("templates/commercial_approved.html")
+	if err != nil {
+		return fmt.Errorf("failed to open html layout: %w", err)
+	}
+
+	var bodyBuffer bytes.Buffer
+	if err := tmpl.Execute(&bodyBuffer, emailData); err != nil {
+		return fmt.Errorf("failed to map fields to template: %w", err)
+	}
+
+	// 4. Enviar usando el método v3 que inyecta HTML nativo
+	subject := fmt.Sprintf("🚨 Installation Required: %s", companyName)
+	return e.sendWithResend(toEmails, subject, bodyBuffer.String())
 }
 
 // SendPendingReminder sends a 1-day-before follow-up reminder to the inspector.

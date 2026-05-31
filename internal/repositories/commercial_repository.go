@@ -340,7 +340,6 @@ type PendingReminderRow struct {
 
 // ListCrewMembers returns all active crew members.
 func (r *CommercialRepository) ListCrewMembers(ctx context.Context) ([]models.CrewMember, error) {
-	fmt.Println("Arriving to the query ListCrewMemebers")
 	rows, err := r.db.Query(ctx, `
 		SELECT id, full_name, employee_id, email, phone_number, is_active, is_inspector, created_by, created_at, updated_at
 		FROM crew_members

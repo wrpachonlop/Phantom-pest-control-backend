@@ -128,9 +128,6 @@ func (h *ClientHandler) Create(c *gin.Context) {
 	isNewBlue := isInitial && statusStr == "blue"
 	isExempt := isSpam || isNewBlue
 
-	fmt.Printf("DEBUG: Type: %q | Status: %q | Exempt: %v | Pests: %d\n",
-		clientType, statusStr, isExempt, len(req.PestIssues))
-
 	if !isExempt {
 		if len(req.PestIssues) == 0 {
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "at least one pest issue must be selected"})

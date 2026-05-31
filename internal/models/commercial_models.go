@@ -72,7 +72,7 @@ func FrequencySupportsInterval(f ServiceFrequency) bool {
 
 var CommercialAllowedTransitions = map[CommercialStatus][]CommercialStatus{
 	CommercialStatusAssigned:  {CommercialStatusPending, CommercialStatusApproved, CommercialStatusDeclined},
-	CommercialStatusPending:   {CommercialStatusApproved, CommercialStatusDeclined},
+	CommercialStatusPending:   {CommercialStatusApproved, CommercialStatusDeclined, CommercialStatusCancelled},
 	CommercialStatusApproved:  {CommercialStatusInstalled, CommercialStatusCancelled},
 	CommercialStatusInstalled: {CommercialStatusCancelled},
 	CommercialStatusDeclined:  {},

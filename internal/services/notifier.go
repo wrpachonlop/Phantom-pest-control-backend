@@ -120,7 +120,7 @@ func (e *EmailNotifier) SendCommercialApproved(
 	}
 
 	// 3. Cargar y renderizar la plantilla HTML
-	tmpl, err := template.ParseFiles("templates/commercial_approved.html")
+	tmpl, err := template.ParseFiles("internal/templates/commercial_approved.html")
 	if err != nil {
 		return fmt.Errorf("failed to open html layout: %w", err)
 	}

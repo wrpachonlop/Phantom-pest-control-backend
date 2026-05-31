@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/phantompestcontrol/crm/internal/models"
 	"github.com/phantompestcontrol/crm/internal/repositories"
-	"github.com/resend/resend-go/v2"
+	"github.com/resend/resend-go/v3"
 	"go.uber.org/zap"
 )
 
@@ -137,16 +136,17 @@ func (e *EmailNotifier) sendWithResend(to []string, subject, htmlBody string) er
 		Html:    htmlBody,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	_, err := e.resendClient.Emails.SendWithContext(ctx, params)
+	// ── CAMBIO CRÍTICO V3: Usamos Send(params) directo como dicta la documentación ──
+	sent, err := e.resendClient.Emails.Send(params)
 	if err != nil {
-		e.logger.Error("failed to deliver email via Resend API", zap.Strings("recipients", to), zap.Error(err))
+		e.logger.Error("failed to deliver email via Resend API v3", zap.Strings("recipients", to), zap.Error(err))
 		return err
 	}
 
-	e.logger.Info("Email payload processed by Phantom Portal successfully", zap.Strings("recipients", to))
+	e.logger.Info("Email payload processed by Phantom Portal successfully",
+		zap.Strings("recipients", to),
+		zap.String("email_id", sent.Id),
+	)
 	return nil
 }
 

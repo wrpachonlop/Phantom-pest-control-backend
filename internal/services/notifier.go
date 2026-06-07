@@ -167,7 +167,7 @@ func (e *EmailNotifier) SendPendingReminder(
 	<html>
 	<head><meta charset="UTF-8"></head>
 	<body style="margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background-color: #f4f4f6; color: #1f2937;">
-		<table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+		<table align="center" border="0" cellpadding="0" cellspacing="0" width="100%%" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
 			<tr>
 				<td style="background-color: #111827; padding: 30px; text-align: center; border-bottom: 4px solid #d97706;">
 					<h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 600;">Phantom Portal</h1>
@@ -182,7 +182,7 @@ func (e *EmailNotifier) SendPendingReminder(
 					</p>
 					
 					<h2 style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: #d97706; margin: 30px 0 10px 0; letter-spacing: 0.05em;">Leads to Contact Tomorrow</h2>
-					<table width="100%" style="border-collapse: collapse; margin-bottom: 20px;">
+					<table width="100%%" style="border-collapse: collapse; margin-bottom: 20px;">
 						%s
 					</table>
 					

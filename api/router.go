@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"strings"
 
@@ -51,6 +52,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) *gin.En
 	fmt.Println("Commercial repository initialized:", commercialRepo) // Debug log to verify initialization
 	var notifier services.NotificationSender
 	if cfg.Environment == "production" {
+		fmt.Println("Initializing Email Notifier for production environment") // Debug log
 		notifier = services.NewEmailNotifier(logger)
 	} else {
 		notifier = services.NewLogNotifier(logger)
@@ -84,6 +86,13 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) *gin.En
 	// ── Auth-Protected Routes ─────────────────────────────────
 
 	auth := r.Group("/api/v1")
+	r.POST("/api/v1/test-reminder-cron", func(c *gin.Context) {
+		// Aquí llamamos directamente a la función de tu cron job
+		// Nota: Asegúrate de pasarle la instancia de tu ReminderCron (ej. srv.reminderCron)
+		reminderCron.RunReminders(c.Request.Context(), time.Now())
+
+		c.JSON(http.StatusOK, gin.H{"message": "Cron forced successfully"})
+	})
 	auth.Use(middleware.RequireAuth(cfg))
 	{
 		// Me

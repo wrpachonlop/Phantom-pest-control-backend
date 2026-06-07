@@ -46,54 +46,53 @@ func NewReminderCron(
 // Start launches the cron loop. Call via go cron.Start(ctx).
 // Graceful shutdown: cancel the context to stop.
 func (c *ReminderCron) Start(ctx context.Context) {
-	c.logger.Info("reminder cron engine initialized for 10:00 AM (Mon-Fri)")
+	c.logger.Info("Reminder cron initialized in production mode (Checks via internal ticker/monitor)")
 
-	go func() {
-		for {
-			now := time.Now()
+	// Dejamos un ticker de 15 minutos (alineado con tu monitor de Render)
+	ticker := time.NewTicker(15 * time.Minute)
+	defer ticker.Stop()
 
-			// 1. Calcular cuándo deberían ser las próximas 10:00 AM en la hora del servidor
-			nextRun := time.Date(now.Year(), now.Month(), now.Day(), 10, 0, 0, 0, now.Location())
+	// Cargar la zona horaria de Vancouver/Burnaby para que no dependa de la hora UTC de Render
+	location, err := time.LoadLocation("America/Vancouver")
+	if err != nil {
+		c.logger.Warn("Failed to load America/Vancouver timezone, falling back to local system time", zap.Error(err))
+		location = time.Local
+	}
 
-			// Si ya pasaron las 10:00 AM de hoy, calculamos las 10:00 AM de mañana
-			if now.After(nextRun) {
-				nextRun = nextRun.Add(24 * time.Hour)
+	for {
+		select {
+		case <-ctx.Done():
+			c.logger.Info("Reminder cron stopped gracefully")
+			return
+		case <-ticker.C:
+			// 1. Obtener la hora actual explícitamente en horario de Vancouver
+			nowLocal := time.Now().In(location)
+
+			// 2. Verificar si es fin de semana. Si es Sábado o Domingo, ignorar.
+			if nowLocal.Weekday() == time.Saturday || nowLocal.Weekday() == time.Sunday {
+				continue
 			}
 
-			// 2. Calcular la duración exacta que el proceso debe dormir
-			durationUntilNextRun := time.Until(nextRun)
-			c.logger.Info("Scheduling next follow-up reminders check",
-				zap.String("next_run_target", nextRun.Format("2006-01-02 15:04:05")),
-				zap.Duration("wait_time", durationUntilNextRun),
-			)
+			// 3. Verificar si estamos en la ventana de las 10:00 AM
+			if nowLocal.Hour() == 10 {
+				today := nowLocal.Format(time.DateOnly)
 
-			select {
-			case <-time.After(durationUntilNextRun):
-				// 3. Verificar si el día objetivo es fin de semana (Sábado o Domingo)
-				// Con esto nos aseguramos de que SOLO se ejecute de Lunes a Viernes
-				weekday := time.Now().Weekday()
-				if weekday == time.Saturday || weekday == time.Sunday {
-					c.logger.Info("Skipping reminders execution: Weekend detected",
-						zap.String("day", weekday.String()),
-					)
+				// Protección estricta: Si ya corrió hoy, no vuelvas a enviar nada en este bloque de 15 minutos
+				if c.lastRunDate == today {
 					continue
 				}
 
-				// 4. ¡Disparar los recordatorios consolidados!
-				c.logger.Info("Executing scheduled daily reminder cron job...")
-				c.runReminders(ctx, time.Now())
-
-			case <-ctx.Done():
-				c.logger.Info("reminder cron stopped gracefully")
-				return
+				c.lastRunDate = today
+				c.logger.Info("10:00 AM window detected! Triggering daily pending follow-up reminders...")
+				c.RunReminders(ctx, nowLocal)
 			}
 		}
-	}()
+	}
 }
 
-// runReminders sends notifications for clients with next_followup_date = tomorrow.
-func (c *ReminderCron) runReminders(ctx context.Context, now time.Time) {
-	tomorrow := now.Add(24 * time.Hour).Truncate(24 * time.Hour)
+// RunReminders sends notifications for clients with next_followup_date = tomorrow.
+func (c *ReminderCron) RunReminders(ctx context.Context, now time.Time) {
+	tomorrow := now.AddDate(0, 0, 1)
 
 	c.logger.Info("running pending follow-up reminders",
 		zap.String("target_date", tomorrow.Format(time.DateOnly)),
@@ -158,5 +157,5 @@ func (c *ReminderCron) runReminders(ctx context.Context, now time.Time) {
 
 // RunNow triggers an immediate run (useful for testing or manual trigger via admin API).
 func (c *ReminderCron) RunNow(ctx context.Context) {
-	c.runReminders(ctx, time.Now().UTC())
+	c.RunReminders(ctx, time.Now().UTC())
 }

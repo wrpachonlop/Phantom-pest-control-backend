@@ -299,11 +299,12 @@ func (r *CommercialRepository) GetPendingFollowupsDue(
 			ccd.client_id,
 			COALESCE(ccd.company_name, c.client_name, 'Unknown') AS company_name,
 			ccd.next_followup_date,
-			u.full_name   AS inspector_name,
-			u.email       AS inspector_email
+			COALESCE(u.full_name, cm.full_name, 'Assigned Inspector') AS inspector_name,
+			COALESCE(u.email, cm.email, '') AS inspector_email
 		FROM commercial_client_details ccd
 		JOIN clients c        ON c.id = ccd.client_id
-		JOIN users u          ON u.id = ccd.inspector_id
+		LEFT JOIN users u          ON u.id = ccd.inspector_id
+		LEFT JOIN crew_members cm  ON cm.id = ccd.inspector_id
 		WHERE
 			ccd.workflow_status = 'pending'
 			AND ccd.next_followup_date = $1

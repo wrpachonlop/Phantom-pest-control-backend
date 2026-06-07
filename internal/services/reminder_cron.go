@@ -46,28 +46,49 @@ func NewReminderCron(
 // Start launches the cron loop. Call via go cron.Start(ctx).
 // Graceful shutdown: cancel the context to stop.
 func (c *ReminderCron) Start(ctx context.Context) {
-	c.logger.Info("reminder cron started", zap.Int("run_hour_utc", c.runHourUTC))
+	c.logger.Info("reminder cron engine initialized for 10:00 AM (Mon-Fri)")
 
-	ticker := time.NewTicker(1 * time.Minute) // check every minute
-	defer ticker.Stop()
+	go func() {
+		for {
+			now := time.Now()
 
-	for {
-		select {
-		case <-ctx.Done():
-			c.logger.Info("reminder cron stopped")
-			return
-		case t := <-ticker.C:
-			utc := t.UTC()
-			if utc.Hour() == c.runHourUTC && utc.Minute() == 0 {
-				today := utc.Format(time.DateOnly)
-				if c.lastRunDate == today {
-					continue // already ran today
+			// 1. Calcular cuándo deberían ser las próximas 10:00 AM en la hora del servidor
+			nextRun := time.Date(now.Year(), now.Month(), now.Day(), 10, 0, 0, 0, now.Location())
+
+			// Si ya pasaron las 10:00 AM de hoy, calculamos las 10:00 AM de mañana
+			if now.After(nextRun) {
+				nextRun = nextRun.Add(24 * time.Hour)
+			}
+
+			// 2. Calcular la duración exacta que el proceso debe dormir
+			durationUntilNextRun := time.Until(nextRun)
+			c.logger.Info("Scheduling next follow-up reminders check",
+				zap.String("next_run_target", nextRun.Format("2006-01-02 15:04:05")),
+				zap.Duration("wait_time", durationUntilNextRun),
+			)
+
+			select {
+			case <-time.After(durationUntilNextRun):
+				// 3. Verificar si el día objetivo es fin de semana (Sábado o Domingo)
+				// Con esto nos aseguramos de que SOLO se ejecute de Lunes a Viernes
+				weekday := time.Now().Weekday()
+				if weekday == time.Saturday || weekday == time.Sunday {
+					c.logger.Info("Skipping reminders execution: Weekend detected",
+						zap.String("day", weekday.String()),
+					)
+					continue
 				}
-				c.lastRunDate = today
-				c.runReminders(ctx, utc)
+
+				// 4. ¡Disparar los recordatorios consolidados!
+				c.logger.Info("Executing scheduled daily reminder cron job...")
+				c.runReminders(ctx, time.Now())
+
+			case <-ctx.Done():
+				c.logger.Info("reminder cron stopped gracefully")
+				return
 			}
 		}
-	}
+	}()
 }
 
 // runReminders sends notifications for clients with next_followup_date = tomorrow.

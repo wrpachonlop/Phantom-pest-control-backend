@@ -80,7 +80,6 @@ func (e *EmailNotifier) SendCommercialApproved(
 	if details.ApprovedDate != nil {
 		approvedDateStr = details.ApprovedDate.Format("January 02, 2006")
 	}
-	fmt.Printf("Approved date string: %s\n", details)
 	inspectorNameStr := "—"
 	if details.Inspector != nil && details.Inspector.FullName != nil {
 		inspectorNameStr = *details.Inspector.FullName
@@ -135,41 +134,75 @@ func (e *EmailNotifier) SendCommercialApproved(
 	return e.sendWithResend(toEmails, subject, bodyBuffer.String())
 }
 
-// SendPendingReminder sends a 1-day-before follow-up reminder to the inspector.
+// SendPendingReminder envía un único correo consolidado al inspector con su agenda de mañana.
 func (e *EmailNotifier) SendPendingReminder(
 	ctx context.Context,
-	row repositories.PendingReminderRow,
+	inspectorName string,
+	inspectorEmail string,
+	reminders []repositories.PendingReminderRow, // Pasamos la lista completa de sus leads
 ) error {
-	if row.InspectorEmail == "" {
+
+	if inspectorEmail == "" || len(reminders) == 0 {
 		return nil
 	}
 
-	inspectorName := "Inspector"
-	if row.InspectorName != nil {
-		inspectorName = *row.InspectorName
+	subject := fmt.Sprintf("📅 Action Required: Your Follow-up Schedule for Tomorrow")
+
+	// 1. Construir las filas de la tabla HTML dinámicamente en Go
+	var tableRows strings.Builder
+	for _, r := range reminders {
+		tableRows.WriteString(fmt.Sprintf(`
+			<tr style="border-bottom: 1px solid #e5e7eb;">
+				<td style="padding: 12px 0; font-size: 14px; font-weight: 600; color: #111827;">%s</td>
+				<td style="padding: 12px 0; font-size: 14px; text-align: right;">
+					<a href="https://crm.phantompestcontrol.ca/dashboard/clients/%s" target="_blank" style="color: #d97706; text-decoration: none; font-weight: 600;">Open File →</a>
+				</td>
+			</tr>
+		`, r.CompanyName, r.ClientID.String()))
 	}
 
-	subject := fmt.Sprintf("[Phantom CRM] Follow-up reminder: %s tomorrow", row.CompanyName)
-	body := fmt.Sprintf(`
-Hi %s,
+	// 2. Estructura HTML profesional con los estilos de Phantom Portal
+	htmlBody := fmt.Sprintf(`
+	<!DOCTYPE html>
+	<html>
+	<head><meta charset="UTF-8"></head>
+	<body style="margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background-color: #f4f4f6; color: #1f2937;">
+		<table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+			<tr>
+				<td style="background-color: #111827; padding: 30px; text-align: center; border-bottom: 4px solid #d97706;">
+					<h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 600;">Phantom Portal</h1>
+					<p style="color: #9ca3af; margin: 5px 0 0 0; font-size: 12px; text-transform: uppercase;">Daily Agenda Briefing</p>
+				</td>
+			</tr>
+			<tr>
+				<td style="padding: 40px 30px;">
+					<p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.5;">
+						Hi <strong>%s</strong>,<br><br>
+						This is your daily briefing. Tomorrow you have <strong>%d pending commercial lead(s)</strong> that require immediate follow-up and contact.
+					</p>
+					
+					<h2 style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: #d97706; margin: 30px 0 10px 0; letter-spacing: 0.05em;">Leads to Contact Tomorrow</h2>
+					<table width="100%" style="border-collapse: collapse; margin-bottom: 20px;">
+						%s
+					</table>
+					
+					<p style="font-size: 13px; color: #6b7280; margin-top: 30px;">
+						Please ensure to log all notes, outcome details, and status adjustments directly in the portal after communicating with each client.
+					</p>
+				</td>
+			</tr>
+			<tr>
+				<td style="background-color: #f3f4f6; padding: 20px 30px; text-align: center; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+					Automated Sales Engine • Phantom Pest Control 2026
+				</td>
+			</tr>
+		</table>
+	</body>
+	</html>
+	`, inspectorName, len(reminders), tableRows.String())
 
-This is a reminder that you have a scheduled follow-up for a commercial client tomorrow.
-
-Company: %s
-Follow-up Date: %s
-
-Please log your follow-up in the CRM:
-https://crm.phantompestcontrol.ca/dashboard/clients/%s
-
-Phantom Pest Control CRM
-`,
-		inspectorName,
-		row.CompanyName,
-		row.NextFollowupDate.Format("January 2, 2006"),
-		row.ClientID.String(),
-	)
-
-	return e.sendWithResend([]string{row.InspectorEmail}, subject, body)
+	// 3. Despachar el correo vía tu método v3 de Resend
+	return e.sendWithResend([]string{inspectorEmail}, subject, htmlBody)
 }
 
 func (e *EmailNotifier) sendWithResend(to []string, subject, htmlBody string) error {
@@ -218,11 +251,16 @@ func (l *LogNotifier) SendCommercialApproved(_ context.Context, details *models.
 	return nil
 }
 
-func (l *LogNotifier) SendPendingReminder(_ context.Context, row repositories.PendingReminderRow) error {
-	l.logger.Info("NOTIFY: pending reminder",
-		zap.String("client_id", row.ClientID.String()),
-		zap.String("company", row.CompanyName),
-		zap.String("inspector_email", row.InspectorEmail),
+func (l *LogNotifier) SendPendingReminder(
+	_ context.Context,
+	inspectorName string,
+	inspectorEmail string,
+	reminders []repositories.PendingReminderRow, // ◄ Actualizado
+) error {
+	l.logger.Info("NOTIFY: pending reminders consolidated briefing",
+		zap.String("inspector_name", inspectorName),
+		zap.String("inspector_email", inspectorEmail),
+		zap.Int("total_leads_assigned", len(reminders)),
 	)
 	return nil
 }

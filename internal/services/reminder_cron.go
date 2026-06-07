@@ -88,12 +88,41 @@ func (c *ReminderCron) runReminders(ctx context.Context, now time.Time) {
 		c.logger.Info("no follow-up reminders to send today")
 		return
 	}
+	type InspectorGroup struct {
+		Name string
+		Rows []repositories.PendingReminderRow
+	}
+	groupedReminders := make(map[string]*InspectorGroup)
+
+	for _, row := range rows {
+		email := row.InspectorEmail
+		if email == "" {
+			continue
+		}
+
+		// Determinar un nombre por si viene nulo
+		name := "Inspector"
+		if row.InspectorName != nil {
+			name = *row.InspectorName
+		}
+
+		// Si el inspector no está en el mapa, lo inicializamos
+		if _, exists := groupedReminders[email]; !exists {
+			groupedReminders[email] = &InspectorGroup{
+				Name: name,
+				Rows: []repositories.PendingReminderRow{},
+			}
+		}
+
+		// Agregamos la fila a su lista
+		groupedReminders[email].Rows = append(groupedReminders[email].Rows, row)
+	}
 
 	sent := 0
-	for _, row := range rows {
-		if err := c.notifier.SendPendingReminder(ctx, row); err != nil {
-			c.logger.Error("failed to send pending reminder",
-				zap.String("client_id", row.ClientID.String()),
+	for email, group := range groupedReminders {
+		if err := c.notifier.SendPendingReminder(ctx, group.Name, email, group.Rows); err != nil {
+			c.logger.Error("failed to send consolidated pending reminder",
+				zap.String("inspector_email", email),
 				zap.Error(err),
 			)
 			continue
@@ -101,9 +130,8 @@ func (c *ReminderCron) runReminders(ctx context.Context, now time.Time) {
 		sent++
 	}
 
-	c.logger.Info("pending reminders sent",
-		zap.Int("total", len(rows)),
-		zap.Int("sent", sent),
+	c.logger.Info("pending reminders execution completed",
+		zap.Int("total_inspectors_notified", sent),
 	)
 }
 

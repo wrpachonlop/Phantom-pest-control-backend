@@ -29,7 +29,7 @@ type CommercialService struct {
 // (SMTP, SendGrid, log-only in tests).
 type NotificationSender interface {
 	SendCommercialApproved(ctx context.Context, details *models.CommercialClientDetails, recipients []models.NotificationRecipient) error
-	SendPendingReminder(ctx context.Context, row repositories.PendingReminderRow) error
+	SendPendingReminder(ctx context.Context, inspectorName string, inspectorEmail string, reminders []repositories.PendingReminderRow) error
 }
 
 func NewCommercialService(

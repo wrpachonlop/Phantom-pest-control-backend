@@ -146,7 +146,7 @@ func (e *EmailNotifier) SendPendingReminder(
 		return nil
 	}
 
-	subject := fmt.Sprintf("📅 Action Required: Your Follow-up Schedule for Tomorrow")
+	subject := "📅 Action Required: Your Follow-up Schedule for Tomorrow"
 
 	// 1. Construir las filas de la tabla HTML dinámicamente en Go
 	var tableRows strings.Builder
